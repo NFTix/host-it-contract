@@ -19,6 +19,7 @@ contract EventContract is ERC1155 {
 
     // admin role
     address admin;
+     mapping(address => bool) public isCoOrganizer;
 
     // Event variables
     struct EventDetails {
@@ -71,11 +72,19 @@ contract EventContract is ERC1155 {
     }
 
     // access to only factory contract
-    function onlyAdmin() private view {
-        if (msg.sender != admin) {
-            revert NotAdmin();
-        }
-    }
+    // function onlyAdmin() private view {
+    //     if (msg.sender != admin) {
+    //         revert NotAdmin();
+    //     }
+    // }
+
+
+    
+modifier onlyAdmin() {
+    require(msg.sender == admin || isCoOrganizer[msg.sender], "Not authorized");
+    _;
+}
+
 
     // return event details
     function getEventDetails() public view returns (EventDetails memory) {
@@ -86,9 +95,8 @@ contract EventContract is ERC1155 {
     function createTicket(
         uint256[] calldata _ticketVariety,
         uint256[] calldata _amount
-    ) external payable {
-        onlyAdmin();
-        if (_ticketVariety.length > 1) {
+    ) external payable onlyAdmin {
+          if (_ticketVariety.length > 1) {
             _mintBatch(admin, _ticketVariety, _amount, "");
         } else {
             uint256 _ticket = _ticketVariety[0];
@@ -98,9 +106,8 @@ contract EventContract is ERC1155 {
     }
 
     // set event URI
-    function setEventURI(string memory newUri_) external {
-        onlyAdmin();
-        _setURI(newUri_);
+    function setEventURI(string memory newUri_) external onlyAdmin {
+             _setURI(newUri_);
     }
 
     function supportsInterface(
@@ -108,4 +115,27 @@ contract EventContract is ERC1155 {
     ) public view override(ERC1155) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
+
+    
+    function addCoOrganizer(address coOrganizer) external  onlyAdmin {
+    // require(msg.sender == admin, "Only the organizer can add co-organizers");
+    isCoOrganizer[coOrganizer] = true;
+}
+
+
+    function removeCoOrganizer(address coOrganizer) external  onlyAdmin {
+    // require(msg.sender == admin, "Only the organizer can remove co-organizers");
+    isCoOrganizer[coOrganizer] = false;
+}
+
+function rescheduleEvent(uint256 _newStartTime, uint256 _newEndTime) external onlyAdmin {
+    require(_newStartTime > eventDetails.startTime, "Event has already started");
+    require(_newStartTime > block.timestamp, "New start time must be in the future");
+    require(_newEndTime > _newStartTime, "End time must be after start time");
+
+    eventDetails.startTime = _newStartTime;
+    eventDetails.endTime = _newEndTime;
+}
+
+
 }

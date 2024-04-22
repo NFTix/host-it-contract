@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: SEE LICENSE IN LICENSE
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
 import "./EventContract.sol";
@@ -6,7 +6,7 @@ import "./EventContract.sol";
 contract EventFactory {
     uint256 eventId;
 
-    mapping(uint256 => EventContract) eventMapping;
+  mapping(uint256 => address) eventAddresses;
     EventContract[] eventArray;
 
     function createNewEvent(
@@ -33,13 +33,14 @@ contract EventFactory {
             _privateEvent
         );
 
-        eventMapping[eventId] = newEvent;
+        eventAddresses[eventId] = address(newEvent);
         eventArray.push(newEvent);
+        eventId++;
     }
 
     function getEvent(
         uint256 _eventId
     ) external view returns (EventContract.EventDetails memory) {
-        return (eventMapping[_eventId].getEventDetails());
+        return EventContract(eventAddresses[_eventId]).getEventDetails();
     }
 }
