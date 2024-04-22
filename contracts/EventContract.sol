@@ -21,6 +21,8 @@ contract EventContract is ERC1155 {
     address admin;
      mapping(address => bool) public isCoOrganizer;
 
+     mapping(uint256 => EventDetails) public events;
+
     // Event variables
     struct EventDetails {
         uint256 eventId;
@@ -128,14 +130,19 @@ modifier onlyAdmin() {
     isCoOrganizer[coOrganizer] = false;
 }
 
-function rescheduleEvent(uint256 _newStartTime, uint256 _newEndTime) external onlyAdmin {
-    require(_newStartTime > eventDetails.startTime, "Event has already started");
-    require(_newStartTime > block.timestamp, "New start time must be in the future");
+
+function rescheduleEvent(uint256 _eventId, uint256 _newStartTime, uint256 _newEndTime) external view onlyAdmin {
+    require(_newStartTime > events[_eventId].startTime, "Event has already started");
+    // require(_newStartTime > block.timestamp, "New start time must be in the future");
     require(_newEndTime > _newStartTime, "End time must be after start time");
 
+
+    EventDetails memory eventDetails = events[_eventId];
     eventDetails.startTime = _newStartTime;
     eventDetails.endTime = _newEndTime;
 }
+
+
 
 
 }
