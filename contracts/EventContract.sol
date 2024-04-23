@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.24;
 
 // imports
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
@@ -131,18 +131,15 @@ modifier onlyAdmin() {
 }
 
 
-function rescheduleEvent(uint256 _eventId, uint256 _newStartTime, uint256 _newEndTime) external view onlyAdmin {
+function rescheduleEvent(uint256 _eventId, uint256 _newStartTime, uint256 _newEndTime) external onlyAdmin {
     require(_newStartTime > events[_eventId].startTime, "Event has already started");
     // require(_newStartTime > block.timestamp, "New start time must be in the future");
     require(_newEndTime > _newStartTime, "End time must be after start time");
 
 
-    EventDetails memory eventDetails = events[_eventId];
+    // EventDetails memory eventDetails = events[_eventId];
     eventDetails.startTime = _newStartTime;
     eventDetails.endTime = _newEndTime;
 }
-
-
-
 
 }

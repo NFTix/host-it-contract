@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.24;
 
 import "./EventContract.sol";
 
@@ -35,8 +35,19 @@ contract EventFactory {
 
         eventAddresses[eventId] = address(newEvent);
         eventArray.push(newEvent);
-        eventId++;
+        // eventId++;
     }
+
+function cancelEvent(uint256 _eventId) external {
+    // EventDetails memory eventDetails = events[_eventId];
+    require(_eventId < eventArray.length, "Invalid index");
+    eventArray[_eventId] = eventArray[eventArray.length - 1];
+    eventArray.pop();
+
+     delete eventAddresses[_eventId];
+}
+
+
 
     function getEvent(
         uint256 _eventId
