@@ -1,13 +1,14 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity 0.8.25;
 
 // imports
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 
 // errors
 error NotAdmin();
 
-contract EventContract is ERC1155 {
+contract EventContract is ERC1155, IERC1155Receiver {
     // contract events
     event EventCreated(
         uint256 indexed eventId,
@@ -45,9 +46,9 @@ contract EventContract is ERC1155 {
         uint256 endTime;
         bool virtualEvent;
         bool privateEvent;
-        uint64 totalTickets;
-        uint64 soldTickets;
-        bool hasEnded;
+        uint256 totalTickets;
+        uint256 soldTickets;
+        bool isCancelled;
     }
     EventDetails eventDetails;
 
@@ -65,6 +66,7 @@ contract EventContract is ERC1155 {
         bool _privateEvent
     ) ERC1155("") {
         admin = msg.sender;
+
         eventDetails = EventDetails({
             eventId: _eventId,
             organizer: _organizer,
@@ -78,7 +80,7 @@ contract EventContract is ERC1155 {
             privateEvent: _privateEvent,
             totalTickets: 0,
             soldTickets: 0,
-            hasEnded: false
+            isCancelled: false
         });
 
         emit EventCreated(
@@ -88,31 +90,51 @@ contract EventContract is ERC1155 {
         );
     }
 
-    // access to only factory contract
+    // access to only admin: factory contract
     function onlyAdmin() private view {
         if (msg.sender != admin) {
             revert NotAdmin();
         }
     }
 
+    // mint event tickets to contract
+    function createEventTicket(
+        uint256[] calldata _ticketId,
+        uint256[] calldata _amount
+    ) external {
+        onlyAdmin();
+        if (_ticketId.length > 1) {
+            _mintBatch(address(this), _ticketId, _amount, "");
+            for (uint256 i; i < _amount.length; i++) {
+                eventDetails.totalTickets += _amount[i];
+            }
+        } else {
+            uint256 _ticket = _ticketId[0];
+            uint256 amount = _amount[0];
+            _mint(address(this), _ticket, amount, "");
+            eventDetails.totalTickets += amount;
+        }
+    }
+
     // return event details
-    function getEventDetails() public view returns (EventDetails memory) {
+    function getEventDetails() external view returns (EventDetails memory) {
         return eventDetails;
     }
 
-    // create ticket
-    function createTicket(
-        uint256[] calldata _ticketVariety,
-        uint256[] calldata _amount
-    ) external payable {
+    // reschedule event
+    function rescheduleEvent(
+        uint256 _date,
+        uint256 _startTime,
+        uint256 _endTime,
+        bool _virtualEvent,
+        bool _privateEvent
+    ) external {
         onlyAdmin();
-        if (_ticketVariety.length > 1) {
-            _mintBatch(admin, _ticketVariety, _amount, "");
-        } else {
-            uint256 _ticket = _ticketVariety[0];
-            uint256 _price = _amount[0];
-            _mint(admin, _ticket, _price, "");
-        }
+        eventDetails.date = _date;
+        eventDetails.startTime = _startTime;
+        eventDetails.endTime = _endTime;
+        eventDetails.virtualEvent = _virtualEvent;
+        eventDetails.privateEvent = _privateEvent;
     }
 
     // handle receiving of ERC1155 token
@@ -158,7 +180,7 @@ contract EventContract is ERC1155 {
     // ERC-165: Standard Interface Detection
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override(ERC1155) returns (bool) {
+    ) public view override(ERC1155, IERC165) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 }

@@ -2,15 +2,29 @@
 pragma solidity 0.8.25;
 
 import "./EventContract.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract EventFactory {
+contract EventFactory is AccessControl {
+    // contract events
+    event EventCreated(
+        uint256 indexed eventId,
+        string indexed eventName,
+        address indexed organizer
+    );
+
+    event AddOrganizer(uint256 indexed eventId, address indexed newOrganizer);
+
+    event RemoveOrganizer(
+        uint256 indexed eventId,
+        address indexed newOrganizer
+    );
+
+    // state variables
     uint256 eventId;
-
-    mapping(uint256 => EventContract) eventMapping;
+    mapping(uint256 => EventContract) public eventMapping;
     EventContract[] eventArray;
 
     function createNewEvent(
-        address _organizer,
         string memory _eventName,
         string memory _description,
         string memory _eventAddress,
@@ -22,7 +36,7 @@ contract EventFactory {
     ) external {
         EventContract newEvent = new EventContract(
             ++eventId,
-            _organizer,
+            msg.sender,
             _eventName,
             _description,
             _eventAddress,
@@ -35,11 +49,103 @@ contract EventFactory {
 
         eventMapping[eventId] = newEvent;
         eventArray.push(newEvent);
+
+        // grant the organizer a specific role for this event
+        bytes32 defaultEventIdRole = keccak256(
+            abi.encodePacked("DEFAULT_EVENT_ORGANIZER", eventId)
+        );
+        bytes32 eventIdRole = keccak256(
+            abi.encodePacked("EVENT_ORGANIZER", eventId)
+        );
+        require(_grantRole(defaultEventIdRole, msg.sender));
+        require(_grantRole(eventIdRole, msg.sender));
+
+        // emit event creation
+        emit EventCreated(eventId, _eventName, msg.sender);
     }
 
-    function getEvent(
+    // add organizer
+    function addEventOrganizer(
+        uint256 _eventId,
+        address _newOrganizer
+    )
+        external
+        onlyRole(
+            keccak256(abi.encodePacked("DEFAULT_EVENT_ORGANIZER", eventId))
+        )
+    {
+        require(
+            _grantRole(
+                keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)),
+                _newOrganizer
+            )
+        );
+
+        emit AddOrganizer(_eventId, _newOrganizer);
+    }
+
+    // remove organizer
+    function removeOrganizer(
+        uint256 _eventId,
+        address _removedOrganizer
+    )
+        external
+        onlyRole(
+            keccak256(abi.encodePacked("DEFAULT_EVENT_ORGANIZER", eventId))
+        )
+    {
+        require(
+            _revokeRole(
+                keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)),
+                _removedOrganizer
+            )
+        );
+
+        emit RemoveOrganizer(_eventId, _removedOrganizer);
+    }
+
+    // reschedule event
+    function rescheduleEvent(
+        uint256 _eventId,
+        uint256 _date,
+        uint256 _startTime,
+        uint256 _endTime,
+        bool _virtualEvent,
+        bool _privateEvent
+    )
+        external
+        onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
+    {
+        eventMapping[_eventId].rescheduleEvent(
+            _date,
+            _startTime,
+            _endTime,
+            _virtualEvent,
+            _privateEvent
+        );
+    }
+
+    // create ticket
+    function createEventTicket(
+        uint256 _eventId,
+        uint256[] calldata _ticketId,
+        uint256[] calldata _amount
+    )
+        external
+        payable
+        onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
+    {
+        eventMapping[_eventId].createEventTicket(_ticketId, _amount);
+    }
+
+    // return event details
+    function getEventDetails(
         uint256 _eventId
     ) external view returns (EventContract.EventDetails memory) {
         return (eventMapping[_eventId].getEventDetails());
     }
+
+    receive() external payable {}
+
+    fallback() external payable {}
 }
