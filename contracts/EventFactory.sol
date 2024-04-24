@@ -12,6 +12,19 @@ contract EventFactory is AccessControl {
         address indexed organizer
     );
 
+    event EventRescheduled(
+        uint256 indexed eventId,
+        uint256 date,
+        uint256 startTime,
+        uint256 endTime,
+        bool virtualEvent,
+        bool privateEvent
+    );
+
+    event EventCancelled(
+        uint256 indexed eventId
+    );
+
     event AddOrganizer(uint256 indexed eventId, address indexed newOrganizer);
 
     event RemoveOrganizer(
@@ -22,7 +35,6 @@ contract EventFactory is AccessControl {
     // state variables
     uint256 eventId;
     mapping(uint256 => EventContract) public eventMapping;
-    EventContract[] eventArray;
 
     function createNewEvent(
         string memory _eventName,
@@ -48,7 +60,6 @@ contract EventFactory is AccessControl {
         );
 
         eventMapping[eventId] = newEvent;
-        eventArray.push(newEvent);
 
         // grant the organizer a specific role for this event
         bytes32 defaultEventIdRole = keccak256(
@@ -123,6 +134,27 @@ contract EventFactory is AccessControl {
             _virtualEvent,
             _privateEvent
         );
+
+        emit EventRescheduled(
+            _eventId,
+            _date,
+            _startTime,
+            _endTime,
+            _virtualEvent,
+            _privateEvent
+        );
+    }
+
+    // cancel event
+    function cancelEvent(
+        uint256 _eventId
+    )
+        external
+        onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
+    {
+        eventMapping[_eventId].cancelEvent();
+
+        emit EventCancelled(_eventId);
     }
 
     // create ticket

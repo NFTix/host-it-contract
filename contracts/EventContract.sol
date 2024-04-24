@@ -16,6 +16,17 @@ contract EventContract is ERC1155, IERC1155Receiver {
         address indexed organizer
     );
 
+    event EventRescheduled(
+        uint256 indexed eventId,
+        uint256 date,
+        uint256 startTime,
+        uint256 endTime,
+        bool virtualEvent,
+        bool privateEvent
+    );
+
+    event EventCancelled(uint256 indexed eventId);
+
     event TicketPurchased(
         address indexed buyer,
         string eventName,
@@ -29,6 +40,18 @@ contract EventContract is ERC1155, IERC1155Receiver {
         uint256 id,
         uint256 value,
         bytes data
+    );
+
+    event TicketBurned(
+        address indexed from,
+        uint256 indexed ticketId,
+        uint256 indexed amount
+    );
+
+    event TicketTransferred(
+        address indexed from,
+        address indexed to,
+        uint256 indexed ticketId
     );
 
     // admin role
@@ -135,6 +158,14 @@ contract EventContract is ERC1155, IERC1155Receiver {
         eventDetails.endTime = _endTime;
         eventDetails.virtualEvent = _virtualEvent;
         eventDetails.privateEvent = _privateEvent;
+    }
+
+    // cancel event
+    function cancelEvent() external {
+        onlyAdmin();
+        eventDetails.isCancelled = true;
+
+        emit EventCancelled(eventDetails.eventId);
     }
 
     // handle receiving of ERC1155 token
