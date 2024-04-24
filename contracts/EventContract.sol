@@ -9,11 +9,25 @@ error NotAdmin();
 
 contract EventContract is ERC1155 {
     // contract events
-    event EventCreated(uint256 indexed eventId, address indexed organizer);
+    event EventCreated(
+        uint256 indexed eventId,
+        string indexed eventName,
+        address indexed organizer
+    );
+
     event TicketPurchased(
         address indexed buyer,
+        string eventName,
         uint256 indexed eventId,
         uint256 indexed ticketId
+    );
+
+    event TicketCreated(
+        address operator,
+        address from,
+        uint256 id,
+        uint256 value,
+        bytes data
     );
 
     // admin role
@@ -66,7 +80,12 @@ contract EventContract is ERC1155 {
             soldTickets: 0,
             hasEnded: false
         });
-        emit EventCreated(eventDetails.eventId, eventDetails.organizer);
+
+        emit EventCreated(
+            eventDetails.eventId,
+            eventDetails.eventName,
+            eventDetails.organizer
+        );
     }
 
     // access to only factory contract
@@ -94,6 +113,40 @@ contract EventContract is ERC1155 {
             uint256 _price = _amount[0];
             _mint(admin, _ticket, _price, "");
         }
+    }
+
+    // handle receiving of ERC1155 token
+    function onERC1155Received(
+        address operator,
+        address from,
+        uint256 id,
+        uint256 value,
+        bytes calldata data
+    ) external returns (bytes4) {
+        // Handle the received tokens
+        // Emit an event to notify the receipt of tokens
+        emit TicketCreated(operator, from, id, value, data);
+
+        // Return the ERC1155Received magic value
+        return IERC1155Receiver.onERC1155Received.selector;
+    }
+
+    // handle batch receiving of ERC1155 token
+    function onERC1155BatchReceived(
+        address operator,
+        address from,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+    ) external returns (bytes4) {
+        // Handle the received tokens
+        // Emit an event to notify the receipt of tokens
+        for (uint256 i = 0; i < ids.length; i++) {
+            emit TicketCreated(operator, from, ids[i], values[i], data);
+        }
+
+        // Return the ERC1155BatchReceived magic value
+        return IERC1155Receiver.onERC1155BatchReceived.selector;
     }
 
     // set event URI
