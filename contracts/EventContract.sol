@@ -3,7 +3,6 @@ pragma solidity 0.8.25;
 
 // imports
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 
 // errors
 error NotAdmin();
@@ -103,6 +102,7 @@ contract EventContract is ERC1155 {
         _setURI(newUri_);
     }
 
+    // ERC-165: Standard Interface Detection
     function supportsInterface(
         bytes4 interfaceId
     ) public view override(ERC1155) returns (bool) {
