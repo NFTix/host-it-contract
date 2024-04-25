@@ -126,7 +126,7 @@ contract EventContract is ERC1155, IERC1155Receiver {
         uint256[] calldata _amount
     ) external {
         onlyAdmin();
-        if (_ticketId.length > 1) {
+        if (_ticketId.length > 1 && _amount.length > 1) {
             _mintBatch(address(this), _ticketId, _amount, "");
             for (uint256 i; i < _amount.length; i++) {
                 eventDetails.totalTickets += _amount[i];
@@ -137,6 +137,48 @@ contract EventContract is ERC1155, IERC1155Receiver {
             _mint(address(this), _ticket, amount, "");
             eventDetails.totalTickets += amount;
         }
+    }
+
+    // buy event ticket
+    function buyTicket(
+        uint256[] calldata _ticketId,
+        uint256[] calldata _amount
+    ) external payable {
+        onlyAdmin();
+
+        if (_ticketId.length > 1 && _amount.length > 1) {
+            for (uint256 i = 0; i < _ticketId.length; i++) {
+                safeTransferFrom(
+                    address(this),
+                    msg.sender,
+                    _ticketId[i],
+                    _amount[i],
+                    ""
+                );
+
+                emit TicketPurchased(
+                    msg.sender,
+                    eventDetails.eventName,
+                    eventDetails.eventId,
+                    _ticketId[i]
+                );
+            }
+        } else {
+            safeTransferFrom(
+                address(this),
+                msg.sender,
+                _ticketId[0],
+                _amount[0],
+                ""
+            );
+        }
+
+        emit TicketPurchased(
+            msg.sender,
+            eventDetails.eventName,
+            eventDetails.eventId,
+            _ticketId[0]
+        );
     }
 
     // return event details
@@ -206,12 +248,5 @@ contract EventContract is ERC1155, IERC1155Receiver {
     function setEventURI(string memory newUri_) external {
         onlyAdmin();
         _setURI(newUri_);
-    }
-
-    // ERC-165: Standard Interface Detection
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view override(ERC1155, IERC165) returns (bool) {
-        return super.supportsInterface(interfaceId);
     }
 }
