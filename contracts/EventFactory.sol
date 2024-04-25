@@ -179,8 +179,7 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         uint256 _eventId,
         uint256[] calldata _ticketId,
         uint256[] calldata _amount
-    ) external payable {
-        
+    ) external payable nonReentrant {
         eventMapping[_eventId].buyTicket(_ticketId, _amount);
     }
 
