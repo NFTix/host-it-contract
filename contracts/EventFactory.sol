@@ -3,8 +3,9 @@ pragma solidity 0.8.25;
 
 import "./EventContract.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract EventFactory is AccessControl {
+contract EventFactory is AccessControl, ReentrancyGuard {
     // contract events
     event EventCreated(
         uint256 indexed eventId,
@@ -21,9 +22,7 @@ contract EventFactory is AccessControl {
         bool privateEvent
     );
 
-    event EventCancelled(
-        uint256 indexed eventId
-    );
+    event EventCancelled(uint256 indexed eventId);
 
     event AddOrganizer(uint256 indexed eventId, address indexed newOrganizer);
 
@@ -126,6 +125,7 @@ contract EventFactory is AccessControl {
     )
         external
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
+        nonReentrant 
     {
         eventMapping[_eventId].rescheduleEvent(
             _date,
@@ -151,6 +151,7 @@ contract EventFactory is AccessControl {
     )
         external
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
+        nonReentrant
     {
         eventMapping[_eventId].cancelEvent();
 
@@ -166,8 +167,24 @@ contract EventFactory is AccessControl {
         external
         payable
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
+        nonReentrant
     {
         eventMapping[_eventId].createEventTicket(_ticketId, _amount);
+
+        eventMapping[_eventId].setApprovalForAll(address(this), true);
+    }
+
+    // buy ticket
+    function buyTicket(
+        uint256 _eventId,
+        uint256[] calldata _ticketId,
+        uint256[] calldata _amount
+    ) external payable {
+        if (_ticketId.length > 1 && _amount.length > 1) {
+            
+        } else {
+            
+        }
     }
 
     // return event details
