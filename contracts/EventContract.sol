@@ -13,7 +13,8 @@ contract EventContract is ERC1155, IERC1155Receiver {
     event EventCreated(
         uint256 indexed eventId,
         string indexed eventName,
-        address indexed organizer
+        address indexed organizer,
+        uint indexed ticketPrice
     );
 
     event EventRescheduled(
@@ -72,6 +73,7 @@ contract EventContract is ERC1155, IERC1155Receiver {
         uint256 totalTickets;
         uint256 soldTickets;
         bool isCancelled;
+        uint256 ticketPrice;
     }
     EventDetails eventDetails;
 
@@ -86,7 +88,8 @@ contract EventContract is ERC1155, IERC1155Receiver {
         uint256 _startTime,
         uint256 _endTime,
         bool _virtualEvent,
-        bool _privateEvent
+        bool _privateEvent,
+        uint256 _ticketPrice
     ) ERC1155("") {
         admin = msg.sender;
 
@@ -103,13 +106,15 @@ contract EventContract is ERC1155, IERC1155Receiver {
             privateEvent: _privateEvent,
             totalTickets: 0,
             soldTickets: 0,
-            isCancelled: false
+            isCancelled: false,
+            ticketPrice: _ticketPrice,
         });
 
         emit EventCreated(
             eventDetails.eventId,
             eventDetails.eventName,
-            eventDetails.organizer
+            eventDetails.organizer,
+            eventDetails.ticketPrice
         );
     }
 
@@ -183,6 +188,31 @@ contract EventContract is ERC1155, IERC1155Receiver {
         // Return the ERC1155Received magic value
         return IERC1155Receiver.onERC1155Received.selector;
     }
+
+
+function setTicketPrice(uint256 _price) external onlyAdmin {
+    ticketPrice = _price;
+}
+
+function buyTicket(uint256 _ticketId, uint256 _amount) external payable {
+    require(!eventDetails.isCancelled, "Event is cancelled");
+    require(!eventDetails.privateEvent, "Event is private");
+    require(block.timestamp < eventDetails.startTime, "Event has started");
+    require(msg.value >= _amount * ticketPrice, "Insufficient funds");
+
+    // Mint the purchased tickets to the buyer
+    _mint(msg.sender, _ticketId, _amount, "");
+
+    // Update the number of sold tickets
+    eventDetails.soldTickets += _amount;
+
+    // Emit the TicketPurchased event
+    emit TicketPurchased(msg.sender, eventDetails.eventName, eventDetails.eventId, _ticketId);
+
+}
+
+
+
 
     // handle batch receiving of ERC1155 token
     function onERC1155BatchReceived(
