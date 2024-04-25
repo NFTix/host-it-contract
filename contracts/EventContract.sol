@@ -139,6 +139,48 @@ contract EventContract is ERC1155, IERC1155Receiver {
         }
     }
 
+    // buy event ticket
+    function buyTicket(
+        uint256[] calldata _ticketId,
+        uint256[] calldata _amount
+    ) external payable {
+        onlyAdmin();
+
+        if (_ticketId.length > 1 && _amount.length > 1) {
+            for (uint256 i = 0; i < _ticketId.length; i++) {
+                safeTransferFrom(
+                    address(this),
+                    msg.sender,
+                    _ticketId[i],
+                    _amount[i],
+                    ""
+                );
+
+                emit TicketPurchased(
+                    msg.sender,
+                    eventDetails.eventName,
+                    eventDetails.eventId,
+                    _ticketId[i]
+                );
+            }
+        } else {
+            safeTransferFrom(
+                address(this),
+                msg.sender,
+                _ticketId[0],
+                _amount[0],
+                ""
+            );
+        }
+
+        emit TicketPurchased(
+            msg.sender,
+            eventDetails.eventName,
+            eventDetails.eventId,
+            _ticketId[0]
+        );
+    }
+
     // return event details
     function getEventDetails() external view returns (EventDetails memory) {
         return eventDetails;

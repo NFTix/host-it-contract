@@ -125,7 +125,7 @@ contract EventFactory is AccessControl, ReentrancyGuard {
     )
         external
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
-        nonReentrant 
+        nonReentrant
     {
         eventMapping[_eventId].rescheduleEvent(
             _date,
@@ -180,11 +180,8 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         uint256[] calldata _ticketId,
         uint256[] calldata _amount
     ) external payable {
-        if (_ticketId.length > 1 && _amount.length > 1) {
-            
-        } else {
-            
-        }
+        
+        eventMapping[_eventId].buyTicket(_ticketId, _amount);
     }
 
     // return event details
