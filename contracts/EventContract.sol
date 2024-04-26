@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
-pragma solidity 0.8.25;
+pragma solidity 0.8.24;
 
 // imports
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
@@ -107,7 +107,7 @@ contract EventContract is ERC1155, IERC1155Receiver {
             totalTickets: 0,
             soldTickets: 0,
             isCancelled: false,
-            ticketPrice: _ticketPrice,
+            ticketPrice: _ticketPrice
         });
 
         emit EventCreated(

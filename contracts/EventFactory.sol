@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
-pragma solidity 0.8.25;
+pragma solidity 0.8.24;
 
 import "./EventContract.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
@@ -146,16 +146,28 @@ contract EventFactory is AccessControl {
     }
 
     // cancel event
-    function cancelEvent(
-        uint256 _eventId
-    )
-        external
-        onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
-    {
-        eventMapping[_eventId].cancelEvent();
-
-        emit EventCancelled(_eventId);
+    
+    // cancel event
+function cancelEvent(
+    uint256 _eventId
+)
+    external
+    onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
+    nonReentrant
+{
+       // Shift IDs of subsequent events downwards
+    for (uint256 i = _eventId + 1; i <= eventId; i++) {
+        eventMapping[i - 1] = eventMapping[i];
     }
+
+    // Delete the last event
+    delete eventMapping[eventId];
+    eventId--; // Decrement the event ID counter
+
+    emit EventCancelled(_eventId);
+}
+
+
 
     // create ticket
     function createEventTicket(
