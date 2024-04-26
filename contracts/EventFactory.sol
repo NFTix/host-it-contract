@@ -67,8 +67,8 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         bytes32 eventIdRole = keccak256(
             abi.encodePacked("EVENT_ORGANIZER", eventId)
         );
-        require(_grantRole(defaultEventIdRole, msg.sender));
-        require(_grantRole(eventIdRole, msg.sender));
+        grantRole(defaultEventIdRole, msg.sender);
+        grantRole(eventIdRole, msg.sender);
 
         // emit event creation
         emit EventCreated(eventId, _eventName, msg.sender);
@@ -84,12 +84,11 @@ contract EventFactory is AccessControl, ReentrancyGuard {
             keccak256(abi.encodePacked("DEFAULT_EVENT_ORGANIZER", eventId))
         )
     {
-        require(
-            _grantRole(
+        
+            grantRole(
                 keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)),
                 _newOrganizer
             )
-        );
 
         emit AddOrganizer(_eventId, _newOrganizer);
     }
@@ -104,12 +103,10 @@ contract EventFactory is AccessControl, ReentrancyGuard {
             keccak256(abi.encodePacked("DEFAULT_EVENT_ORGANIZER", eventId))
         )
     {
-        require(
-            _revokeRole(
+            revokeRole(
                 keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)),
                 _removedOrganizer
             )
-        );
 
         emit RemoveOrganizer(_eventId, _removedOrganizer);
     }
