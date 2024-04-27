@@ -170,17 +170,25 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         nonReentrant
     {
         eventMapping[_eventId].createEventTicket(_ticketId, _amount);
-
-        eventMapping[_eventId].setApprovalForAll(address(this), true);
     }
 
     // buy ticket
     function buyTicket(
         uint256 _eventId,
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount
+        uint256[] calldata _amount,
+        address _buyer
     ) external payable nonReentrant {
-        eventMapping[_eventId].buyTicket(_ticketId, _amount);
+        eventMapping[_eventId].buyTicket(_ticketId, _amount, _buyer);
+    }
+
+    // balance of tickets
+    function balanceOfTickets(
+        uint256 _eventId,
+        address _account,
+        uint256 _ticketId
+    ) external view returns (uint256) {
+        return eventMapping[_eventId].balanceOf(_account, _ticketId);
     }
 
     // return event details

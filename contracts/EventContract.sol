@@ -2,13 +2,13 @@
 pragma solidity 0.8.25;
 
 // imports
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 // errors
 error NotAdmin();
 
-contract EventContract is ERC1155, IERC1155Receiver {
+contract EventContract is ERC1155Supply, ERC1155Holder {
     // contract events
     event EventCreated(
         uint256 indexed eventId,
@@ -73,7 +73,8 @@ contract EventContract is ERC1155, IERC1155Receiver {
         uint256 soldTickets;
         bool isCancelled;
     }
-    EventDetails eventDetails;
+
+    EventDetails public eventDetails;
 
     // event...innit
     constructor(
@@ -111,6 +112,8 @@ contract EventContract is ERC1155, IERC1155Receiver {
             eventDetails.eventName,
             eventDetails.organizer
         );
+
+        _setApprovalForAll(address(this), admin, true);
     }
 
     // access to only admin: factory contract
@@ -142,22 +145,23 @@ contract EventContract is ERC1155, IERC1155Receiver {
     // buy event ticket
     function buyTicket(
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount
+        uint256[] calldata _amount,
+        address _buyer
     ) external payable {
         onlyAdmin();
 
         if (_ticketId.length > 1 && _amount.length > 1) {
+            safeBatchTransferFrom(
+                address(this),
+                _buyer,
+                _ticketId,
+                _amount,
+                ""
+            );
             for (uint256 i = 0; i < _ticketId.length; i++) {
-                safeTransferFrom(
-                    address(this),
-                    msg.sender,
-                    _ticketId[i],
-                    _amount[i],
-                    ""
-                );
-
+                eventDetails.soldTickets += _amount[i];
                 emit TicketPurchased(
-                    msg.sender,
+                    _buyer,
                     eventDetails.eventName,
                     eventDetails.eventId,
                     _ticketId[i]
@@ -166,19 +170,22 @@ contract EventContract is ERC1155, IERC1155Receiver {
         } else {
             safeTransferFrom(
                 address(this),
-                msg.sender,
+                _buyer,
                 _ticketId[0],
                 _amount[0],
                 ""
             );
-        }
 
-        emit TicketPurchased(
-            msg.sender,
-            eventDetails.eventName,
-            eventDetails.eventId,
-            _ticketId[0]
-        );
+            emit TicketPurchased(
+                _buyer,
+                eventDetails.eventName,
+                eventDetails.eventId,
+                _ticketId[0]
+            );
+
+            // update ampunt of sold tickets
+            eventDetails.soldTickets += _amount[0];
+        }
     }
 
     // return event details
@@ -210,43 +217,17 @@ contract EventContract is ERC1155, IERC1155Receiver {
         emit EventCancelled(eventDetails.eventId);
     }
 
-    // handle receiving of ERC1155 token
-    function onERC1155Received(
-        address operator,
-        address from,
-        uint256 id,
-        uint256 value,
-        bytes calldata data
-    ) external returns (bytes4) {
-        // Handle the received tokens
-        // Emit an event to notify the receipt of tokens
-        emit TicketCreated(operator, from, id, value, data);
-
-        // Return the ERC1155Received magic value
-        return IERC1155Receiver.onERC1155Received.selector;
-    }
-
-    // handle batch receiving of ERC1155 token
-    function onERC1155BatchReceived(
-        address operator,
-        address from,
-        uint256[] calldata ids,
-        uint256[] calldata values,
-        bytes calldata data
-    ) external returns (bytes4) {
-        // Handle the received tokens
-        // Emit an event to notify the receipt of tokens
-        for (uint256 i = 0; i < ids.length; i++) {
-            emit TicketCreated(operator, from, ids[i], values[i], data);
-        }
-
-        // Return the ERC1155BatchReceived magic value
-        return IERC1155Receiver.onERC1155BatchReceived.selector;
-    }
-
     // set event URI
     function setEventURI(string memory newUri_) external {
         onlyAdmin();
         _setURI(newUri_);
+    }
+
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override(ERC1155, ERC1155Holder) returns (bool) {
+        return
+            interfaceId == type(IERC1155Receiver).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 }
