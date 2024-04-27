@@ -198,6 +198,21 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         return (eventMapping[_eventId].getEventDetails());
     }
 
+    // get total supply of tickets by ID
+    function totalSupplyTicketId(
+        uint256 _eventId,
+        uint256 _ticketId
+    ) external view returns (uint256) {
+        return eventMapping[_eventId].totalSupply(_ticketId);
+    }
+
+    // get total supply of all tickets
+    function totalSupplyAllTickets(
+        uint256 _eventId
+    ) external view returns (uint256) {
+        return eventMapping[_eventId].totalSupply();
+    }
+
     receive() external payable {}
 
     fallback() external payable {}
