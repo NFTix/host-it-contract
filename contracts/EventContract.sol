@@ -193,21 +193,27 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         return eventDetails;
     }
 
-    // reschedule event
-    function rescheduleEvent(
-        uint256 _date,
-        uint256 _startTime,
-        uint256 _endTime,
-        bool _virtualEvent,
-        bool _privateEvent
-    ) external {
-        onlyAdmin();
-        eventDetails.date = _date;
-        eventDetails.startTime = _startTime;
-        eventDetails.endTime = _endTime;
-        eventDetails.virtualEvent = _virtualEvent;
-        eventDetails.privateEvent = _privateEvent;
-    }
+       // Update event details
+function updateEventDetails(
+    string memory _eventName,
+    string memory _description,
+    string memory _eventAddress,
+    uint256 _date,
+    uint256 _startTime,
+    uint256 _endTime,
+    bool _virtualEvent,
+    bool _privateEvent
+) external  {
+       onlyAdmin();
+    eventDetails.eventName = _eventName;
+    eventDetails.description = _description;
+    eventDetails.eventAddress = _eventAddress;
+    eventDetails.date = _date;
+    eventDetails.startTime = _startTime;
+    eventDetails.endTime = _endTime;
+    eventDetails.virtualEvent = _virtualEvent;
+    eventDetails.privateEvent = _privateEvent;
+}
 
     // cancel event
     function cancelEvent() external {
