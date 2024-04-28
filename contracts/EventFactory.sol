@@ -114,58 +114,54 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         emit RemoveOrganizer(_eventId, _removedOrganizer);
     }
 
-    
- 
     // Update event details
-function updateEvent(
-    uint256 _eventId,
-    string memory _eventName,
-    string memory _description,
-    string memory _eventAddress,
-    uint256 _date,
-    uint256 _startTime,
-    uint256 _endTime,
-    bool _virtualEvent,
-    bool _privateEvent
-) external {
-    // Ensure event exists
-   require(address(eventMapping[_eventId]) != address(0), "Event does not exist");
+    function updateEvent(
+        uint256 _eventId,
+        string memory _eventName,
+        string memory _description,
+        string memory _eventAddress,
+        uint256 _date,
+        uint256 _startTime,
+        uint256 _endTime,
+        bool _virtualEvent,
+        bool _privateEvent
+    )
+        external
+        onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
+        nonReentrant
+    {
+        // Ensure event exists
+        require(
+            address(eventMapping[_eventId]) != address(0),
+            "Event does not exist"
+        );
 
+        // Check if the event is in the future
+        require(block.timestamp < _startTime, "Event must be in the future");
 
-    // Check if the event is in the future
-    require(block.timestamp < _startTime, "Event must be in the future");
+        // Update event details
+        EventContract eventContract = eventMapping[_eventId];
+        eventContract.updateEventDetails(
+            _eventName,
+            _description,
+            _eventAddress,
+            _date,
+            _startTime,
+            _endTime,
+            _virtualEvent,
+            _privateEvent
+        );
 
-    // Check if caller is the organizer or co-organizer
-    require(
-        hasRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)), msg.sender) ||
-        hasRole(keccak256(abi.encodePacked("EVENT_CO_ORGANIZER", _eventId)), msg.sender),
-        "Caller must be organizer or co-organizer"
-    );
-
-    // Update event details
-    EventContract eventContract = eventMapping[_eventId];
-    eventContract.updateEventDetails(
-        _eventName,
-        _description,
-        _eventAddress,
-        _date,
-        _startTime,
-        _endTime,
-        _virtualEvent,
-        _privateEvent
-    );
-
-    // Emit event updated
-    emit EventRescheduled(
-        _eventId,
-        _date,
-        _startTime,
-        _endTime,
-        _virtualEvent,
-        _privateEvent
-    );
-}
-
+        // Emit event updated
+        emit EventRescheduled(
+            _eventId,
+            _date,
+            _startTime,
+            _endTime,
+            _virtualEvent,
+            _privateEvent
+        );
+    }
 
     // cancel event
     function cancelEvent(

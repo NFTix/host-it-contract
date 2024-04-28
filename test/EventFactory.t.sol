@@ -94,7 +94,7 @@ contract EventFactoryTest is Test {
         );
     }
 
-    function testRescheduleEvent() public {
+    function testUpdateEvent() public {
         // Create a new event
         eventFactory.createNewEvent(
             "Event Name",
@@ -107,13 +107,28 @@ contract EventFactoryTest is Test {
             false
         );
 
-        // Reschedule the event
-        eventFactory.rescheduleEvent(1, 4000000, 5000000, 6000000, true, false);
+        // Update the event
+        eventFactory.updateEvent(
+            1,
+            "New Event Name",
+            "New Event Description",
+            "New Event Address",
+            2000000,
+            3000000,
+            4000000,
+            false,
+            true
+        );
 
-        // Verify event rescheduled event emitted
-        assertEq(eventFactory.getEventDetails(1).date, 4000000);
-        assertEq(eventFactory.getEventDetails(1).startTime, 5000000);
-        assertEq(eventFactory.getEventDetails(1).endTime, 6000000);
+        // Verify event updated event emitted
+        assertEq(eventFactory.getEventDetails(1).eventName, "New Event Name");
+        assertEq(eventFactory.getEventDetails(1).description, "New Event Description");
+        assertEq(eventFactory.getEventDetails(1).eventAddress, "New Event Address");
+        assertEq(eventFactory.getEventDetails(1).date, 2000000);
+        assertEq(eventFactory.getEventDetails(1).startTime, 3000000);
+        assertEq(eventFactory.getEventDetails(1).endTime, 4000000);
+        assertEq(eventFactory.getEventDetails(1).virtualEvent, false);
+        assertEq(eventFactory.getEventDetails(1).privateEvent, true);
     }
 
     function testCancelEvent() public {
@@ -159,9 +174,9 @@ contract EventFactoryTest is Test {
     function testBuyTicket() public {
         // Create a new event
         eventFactory.createNewEvent(
-            "Event Name",
-            "Event Description",
-            "Event Address",
+            "Event 1",
+            "Event 1 Description",
+            "Event 1 Address",
             1000000,
             2000000,
             3000000,
@@ -169,16 +184,35 @@ contract EventFactoryTest is Test {
             false
         );
 
+        eventFactory.createNewEvent(
+            "Event 2",
+            "Event 2 Description",
+            "Event 2 Address",
+            1000000,
+            2000000,
+            3000000,
+            false,
+            true
+        );
+
         // Create event tickets
         eventFactory.createEventTicket(1, testEventIds, testAmounts);
+        eventFactory.createEventTicket(2, testEventIds, testAmounts);
 
         // Buy event tickets
-        eventFactory.buyTicket(1, testBuyEventId, testBuyAmount, address(56));
+        eventFactory.buyTicket(1, testBuyEventId, testBuyAmount, address(1));
+        eventFactory.buyTicket(1, testBuyEventId, testBuyAmount, address(2));
+        eventFactory.buyTicket(2, testBuyEventId, testBuyAmount, address(1));
 
         // Verify event tickets purchased
-        assertEq(eventFactory.getEventDetails(1).soldTickets, 10);
+        assertEq(eventFactory.getEventDetails(1).soldTickets, 20);
+        assertEq(eventFactory.getEventDetails(2).soldTickets, 10);
 
         // Verify event ticket in buyer account
-        assertEq(eventFactory.balanceOfTickets(1, address(56), 1), 5);
+        assertEq(eventFactory.balanceOfTickets(1, address(1), 1), 5);
+        assertEq(eventFactory.balanceOfTickets(1, address(1), 2), 5);
+        assertEq(eventFactory.balanceOfTickets(1, address(2), 1), 5);
+        assertEq(eventFactory.balanceOfTickets(1, address(2), 2), 5);
+        assertEq(eventFactory.balanceOfTickets(2, address(1), 1), 5);
     }
 }
