@@ -122,8 +122,14 @@ contract EventFactoryTest is Test {
 
         // Verify event updated event emitted
         assertEq(eventFactory.getEventDetails(1).eventName, "New Event Name");
-        assertEq(eventFactory.getEventDetails(1).description, "New Event Description");
-        assertEq(eventFactory.getEventDetails(1).eventAddress, "New Event Address");
+        assertEq(
+            eventFactory.getEventDetails(1).description,
+            "New Event Description"
+        );
+        assertEq(
+            eventFactory.getEventDetails(1).eventAddress,
+            "New Event Address"
+        );
         assertEq(eventFactory.getEventDetails(1).date, 2000000);
         assertEq(eventFactory.getEventDetails(1).startTime, 3000000);
         assertEq(eventFactory.getEventDetails(1).endTime, 4000000);
