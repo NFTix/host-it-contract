@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 // errors
 error NotAdmin();
+error InvalidInput();
 
 /**
  * @dev EventContract is a contract that represents an event
@@ -191,23 +192,27 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     /**
      * @dev Mints event tickets to the contract
      * @param _ticketId The ID of the ticket
-     * @param _amount The amount of tickets to mint
+     * @param _quantity The quantity of tickets to mint
+     * @param _price The price of the ticket
      */
     function createEventTicket(
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount
+        uint256[] calldata _quantity,
+        uint256[] calldata _price
     ) external {
         onlyAdmin();
-        if (_ticketId.length > 1 && _amount.length > 1) {
-            _mintBatch(address(this), _ticketId, _amount, "");
-            for (uint256 i; i < _amount.length; i++) {
-                eventDetails.totalTickets += _amount[i];
-            }
-        } else {
-            uint256 _ticket = _ticketId[0];
-            uint256 amount = _amount[0];
-            _mint(address(this), _ticket, amount, "");
-            eventDetails.totalTickets += amount;
+        if (_ticketId.length < 1) {
+            revert InvalidInput();
+        }
+        if (
+            _ticketId.length != _quantity.length &&
+            _ticketId.length != _price.length
+        ) {
+            revert InvalidInput();
+        }
+        _mintBatch(address(this), _ticketId, _quantity, "");
+        for (uint256 i; i < _quantity.length; i++) {
+            eventDetails.totalTickets += _quantity[i];
         }
     }
 
