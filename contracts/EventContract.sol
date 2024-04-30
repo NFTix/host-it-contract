@@ -8,14 +8,31 @@ import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 // errors
 error NotAdmin();
 
+/**
+ * @dev EventContract is a contract that represents an event
+ */
 contract EventContract is ERC1155Supply, ERC1155Holder {
-    // contract events
+    /**
+     * @dev Emitted when a new event is created
+     * @param eventId The ID of the new event
+     * @param eventName The name of the new event
+     * @param organizer The address of the event organizer
+     */
     event EventCreated(
         uint256 indexed eventId,
         string indexed eventName,
         address indexed organizer
     );
 
+    /**
+     * @dev Emitted when an event is rescheduled
+     * @param eventId The ID of the rescheduled event
+     * @param date The new date of the event
+     * @param startTime The new start time of the event
+     * @param endTime The new end time of the event
+     * @param virtualEvent Whether the event is virtual
+     * @param privateEvent Whether the event is private
+     */
     event EventRescheduled(
         uint256 indexed eventId,
         uint256 date,
@@ -25,8 +42,19 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         bool privateEvent
     );
 
+    /**
+     * @dev Emitted when an event is cancelled
+     * @param eventId The ID of the cancelled event
+     */
     event EventCancelled(uint256 indexed eventId);
 
+    /**
+     * @dev Emitted when a ticket is purchased
+     * @param buyer The address of the buyer
+     * @param eventName The name of the event
+     * @param eventId The ID of the event
+     * @param ticketId The ID of the ticket
+     */
     event TicketPurchased(
         address indexed buyer,
         string eventName,
@@ -34,6 +62,14 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         uint256 indexed ticketId
     );
 
+    /**
+     * @dev Emitted when a ticket is created
+     * @param operator The address of the operator
+     * @param from The address of the sender
+     * @param id The ID of the ticket
+     * @param value The amount of tickets
+     * @param data The data of the ticket
+     */
     event TicketCreated(
         address operator,
         address from,
@@ -42,12 +78,24 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         bytes data
     );
 
+    /**
+     * @dev Emitted when a ticket is burned
+     * @param from The address of the sender
+     * @param ticketId The ID of the ticket
+     * @param amount The amount of tickets burned
+     */
     event TicketBurned(
         address indexed from,
         uint256 indexed ticketId,
         uint256 indexed amount
     );
 
+    /**
+     * @dev Emitted when a ticket is transferred
+     * @param from The address of the sender
+     * @param to The address of the receiver
+     * @param ticketId The ID of the ticket
+     */
     event TicketTransferred(
         address indexed from,
         address indexed to,
@@ -58,6 +106,9 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     address admin;
 
     // Event variables
+    /**
+     * @dev Struct representing the details of an event
+     */
     struct EventDetails {
         uint256 eventId;
         address organizer;
@@ -76,7 +127,19 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
 
     EventDetails public eventDetails;
 
-    // event...innit
+    /**
+     * @dev Initializes the contract with the event details
+     * @param _eventId The ID of the event
+     * @param _organizer The address of the event organizer
+     * @param _eventName The name of the event
+     * @param _description The description of the event
+     * @param _eventAddress The address of the event
+     * @param _date The date of the event
+     * @param _startTime The start time of the event
+     * @param _endTime The end time of the event
+     * @param _virtualEvent Whether the event is virtual
+     * @param _privateEvent Whether the event is private
+     */
     constructor(
         uint256 _eventId,
         address _organizer,
@@ -116,14 +179,20 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         _setApprovalForAll(address(this), admin, true);
     }
 
-    // access to only admin: factory contract
+    /**
+     * @dev Restricts access to only the admin
+     */
     function onlyAdmin() private view {
         if (msg.sender != admin) {
             revert NotAdmin();
         }
     }
 
-    // mint event tickets to contract
+    /**
+     * @dev Mints event tickets to the contract
+     * @param _ticketId The ID of the ticket
+     * @param _amount The amount of tickets to mint
+     */
     function createEventTicket(
         uint256[] calldata _ticketId,
         uint256[] calldata _amount
@@ -142,7 +211,12 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         }
     }
 
-    // buy event ticket
+    /**
+     * @dev Buy event tickets from the contract
+     * @param _ticketId The ID of the ticket
+     * @param _amount The amount of tickets to buy
+     * @param _buyer The address of the buyer
+     */
     function buyTicket(
         uint256[] calldata _ticketId,
         uint256[] calldata _amount,
@@ -188,12 +262,25 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         }
     }
 
-    // return event details
+    /**
+     * @dev Returns the event details
+     * @return The event details
+     */
     function getEventDetails() external view returns (EventDetails memory) {
         return eventDetails;
     }
 
-    // Update event details
+    /**
+     * @dev Updates the event details
+     * @param _eventName The new name of the event
+     * @param _description The new description of the event
+     * @param _eventAddress The new address of the event
+     * @param _date The new date of the event
+     * @param _startTime The new start time of the event
+     * @param _endTime The new end time of the event
+     * @param _virtualEvent Whether the event is virtual
+     * @param _privateEvent Whether the event is private
+     */
     function updateEventDetails(
         string memory _eventName,
         string memory _description,
@@ -215,7 +302,9 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         eventDetails.privateEvent = _privateEvent;
     }
 
-    // cancel event
+    /**
+     * @dev Cancels the event
+     */
     function cancelEvent() external {
         onlyAdmin();
         eventDetails.isCancelled = true;
@@ -223,7 +312,10 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         emit EventCancelled(eventDetails.eventId);
     }
 
-    // set event URI
+    /**
+     * @dev Sets the event URI
+     * @param newUri_ The new URI of the event
+     */
     function setEventURI(string memory newUri_) external {
         onlyAdmin();
         _setURI(newUri_);
