@@ -82,7 +82,6 @@ contract EventFactory is AccessControl, ReentrancyGuard {
      * @param _virtualEvent Whether the new event is virtual
      * @param _privateEvent Whether the new event is private
      */
-
     function createNewEvent(
         string memory _eventName,
         string memory _description,
@@ -252,14 +251,15 @@ contract EventFactory is AccessControl, ReentrancyGuard {
     function createEventTicket(
         uint256 _eventId,
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount
+        uint256[] calldata _amount,
+        uint256[] calldata _price
     )
         external
         payable
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
-        eventMapping[_eventId].createEventTicket(_ticketId, _amount);
+        eventMapping[_eventId].createEventTicket(_ticketId, _amount, _price);
     }
 
     /**

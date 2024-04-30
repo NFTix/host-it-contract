@@ -6,8 +6,9 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 // errors
-error NotAdmin();
-error InvalidInput();
+error NOT_ADMIN();
+error INVALID_INPUT();
+error INPUT_MISMATCH();
 
 /**
  * @dev EventContract is a contract that represents an event
@@ -65,18 +66,16 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
 
     /**
      * @dev Emitted when a ticket is created
-     * @param operator The address of the operator
-     * @param from The address of the sender
+     * @param to The address of the receiver
      * @param id The ID of the ticket
-     * @param value The amount of tickets
-     * @param data The data of the ticket
+     * @param quantity The quantity of tickets
+     * @param price The price of the ticket
      */
     event TicketCreated(
-        address operator,
-        address from,
-        uint256 id,
-        uint256 value,
-        bytes data
+        address indexed to,
+        uint256 indexed id,
+        uint256 quantity,
+        uint256 indexed price
     );
 
     /**
@@ -127,6 +126,8 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     }
 
     EventDetails public eventDetails;
+    mapping(uint256 => uint256) ticketPricePerId;
+    mapping(uint256 => uint256) soldTicketsPerId;
 
     /**
      * @dev Initializes the contract with the event details
@@ -185,7 +186,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
      */
     function onlyAdmin() private view {
         if (msg.sender != admin) {
-            revert NotAdmin();
+            revert NOT_ADMIN();
         }
     }
 
@@ -201,18 +202,34 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         uint256[] calldata _price
     ) external {
         onlyAdmin();
+
         if (_ticketId.length < 1) {
-            revert InvalidInput();
+            revert INVALID_INPUT();
         }
+
         if (
             _ticketId.length != _quantity.length &&
             _ticketId.length != _price.length
         ) {
-            revert InvalidInput();
+            revert INPUT_MISMATCH();
         }
+
+        // mint tickets to the contract
         _mintBatch(address(this), _ticketId, _quantity, "");
+
         for (uint256 i; i < _quantity.length; i++) {
+            // stores the total number of tickets minted for the event
             eventDetails.totalTickets += _quantity[i];
+
+            // stores the price of each ticket
+            ticketPricePerId[_ticketId[i]] = _price[i];
+
+            emit TicketCreated(
+                address(this),
+                _ticketId[i],
+                _quantity[i],
+                _price[i]
+            );
         }
     }
 
