@@ -13,13 +13,27 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  */
 
 contract EventFactory is AccessControl, ReentrancyGuard {
-    // contract events
+    /**
+     * @dev Emitted when a new event is created
+     * @param eventId The ID of the new event
+     * @param eventName The name of the new event
+     * @param organizer The address of the event organizer
+     */
     event EventCreated(
         uint256 indexed eventId,
         string indexed eventName,
         address indexed organizer
     );
 
+    /**
+     * @dev Emitted when an event is rescheduled
+     * @param eventId The ID of the rescheduled event
+     * @param date The new date of the event
+     * @param startTime The new start time of the event
+     * @param endTime The new end time of the event
+     * @param virtualEvent Whether the event is virtual
+     * @param privateEvent Whether the event is private
+     */
     event EventRescheduled(
         uint256 indexed eventId,
         uint256 date,
@@ -29,10 +43,24 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         bool privateEvent
     );
 
+    /**
+     * @dev Emitted when an event is cancelled
+     * @param eventId The ID of the cancelled event
+     */
     event EventCancelled(uint256 indexed eventId);
 
+    /**
+     * @dev Emitted when a new organizer is added to an event
+     * @param eventId The ID of the event
+     * @param newOrganizer The address of the new organizer
+     */
     event AddOrganizer(uint256 indexed eventId, address indexed newOrganizer);
 
+    /**
+     * @dev Emitted when an organizer is removed from an event
+     * @param eventId The ID of the event
+     * @param newOrganizer The address of the removed organizer
+     */
     event RemoveOrganizer(
         uint256 indexed eventId,
         address indexed newOrganizer
