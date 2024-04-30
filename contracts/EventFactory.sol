@@ -5,6 +5,13 @@ import "./EventContract.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+/**
+ * @title EventFactory
+ * @author ...
+ * @notice This contract is a factory for creating and managing events
+ * @dev This contract uses AccessControl and ReentrancyGuard from OpenZeppelin
+ */
+
 contract EventFactory is AccessControl, ReentrancyGuard {
     // contract events
     event EventCreated(
@@ -34,6 +41,19 @@ contract EventFactory is AccessControl, ReentrancyGuard {
     // state variables
     uint256 eventId;
     mapping(uint256 => EventContract) public eventMapping;
+    mapping(address => uint) name;
+
+    /**
+     * @dev Creates a new event
+     * @param _eventName The name of the new event
+     * @param _description The description of the new event
+     * @param _eventAddress The address of the new event
+     * @param _date The date of the new event
+     * @param _startTime The start time of the new event
+     * @param _endTime The end time of the new event
+     * @param _virtualEvent Whether the new event is virtual
+     * @param _privateEvent Whether the new event is private
+     */
 
     function createNewEvent(
         string memory _eventName,
@@ -74,7 +94,11 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         emit EventCreated(eventId, _eventName, msg.sender);
     }
 
-    // add organizer
+    /**
+     * @dev Adds a new organizer to an event
+     * @param _eventId The ID of the event
+     * @param _newOrganizer The address of the new organizer
+     */
     function addEventOrganizer(
         uint256 _eventId,
         address _newOrganizer
@@ -94,7 +118,11 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         emit AddOrganizer(_eventId, _newOrganizer);
     }
 
-    // remove organizer
+    /**
+     * @dev Removes an organizer from an event
+     * @param _eventId The ID of the event
+     * @param _removedOrganizer The address of the removed organizer
+     */
     function removeOrganizer(
         uint256 _eventId,
         address _removedOrganizer
@@ -114,7 +142,15 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         emit RemoveOrganizer(_eventId, _removedOrganizer);
     }
 
-    // Update event details
+    /**
+     * @dev Updates event detail
+     * @param _eventId The ID of the event
+     * @param _date The new date of the event
+     * @param _startTime The new start time of the event
+     * @param _endTime The new end time of the event
+     * @param _virtualEvent Whether the event is virtual
+     * @param _privateEvent Whether the event is private
+     */
     function updateEvent(
         uint256 _eventId,
         string memory _eventName,
@@ -163,7 +199,10 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         );
     }
 
-    // cancel event
+    /**
+     * @dev Cancels an event
+     * @param _eventId The ID of the event
+     */
     function cancelEvent(
         uint256 _eventId
     )
@@ -176,7 +215,12 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         emit EventCancelled(_eventId);
     }
 
-    // create ticket
+    /**
+     * @dev Creates a new ticket for an event
+     * @param _eventId The ID of the event
+     * @param _ticketId The ID of the ticket
+     * @param _amount The amount of tickets to create
+     */
     function createEventTicket(
         uint256 _eventId,
         uint256[] calldata _ticketId,
@@ -190,7 +234,13 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         eventMapping[_eventId].createEventTicket(_ticketId, _amount);
     }
 
-    // buy ticket
+    /**
+     * @dev Buys tickets for an event
+     * @param _eventId The ID of the event
+     * @param _ticketId The ID of the ticket
+     * @param _amount The amount of tickets to buy
+     * @param _buyer The address of the buyer
+     */
     function buyTicket(
         uint256 _eventId,
         uint256[] calldata _ticketId,
@@ -200,7 +250,13 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         eventMapping[_eventId].buyTicket(_ticketId, _amount, _buyer);
     }
 
-    // balance of tickets
+    /**
+     * @dev Returns the balance of tickets for an event
+     * @param _eventId The ID of the event
+     * @param _account The address of the account
+     * @param _ticketId The ID of the ticket
+     * @return The balance of tickets
+     */
     function balanceOfTickets(
         uint256 _eventId,
         address _account,
@@ -209,14 +265,23 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         return eventMapping[_eventId].balanceOf(_account, _ticketId);
     }
 
-    // return event details
+    /**
+     * @dev Returns the details of an event
+     * @param _eventId The ID of the event
+     * @return The details of the event
+     */
     function getEventDetails(
         uint256 _eventId
     ) external view returns (EventContract.EventDetails memory) {
         return (eventMapping[_eventId].getEventDetails());
     }
 
-    // get total supply of tickets by ID
+    /**
+     * @dev Returns the total supply of a ticket type for an event
+     * @param _eventId The ID of the event
+     * @param _ticketId The ID of the ticket
+     * @return The balance of a ticket type for an event
+     */
     function totalSupplyTicketId(
         uint256 _eventId,
         uint256 _ticketId
@@ -224,7 +289,11 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         return eventMapping[_eventId].totalSupply(_ticketId);
     }
 
-    // get total supply of all tickets
+    /**
+     * @dev Returns the total supply of a ticket type for an event
+     * @param _eventId The ID of the event
+     * @return The balance of all tickets for an event
+     */
     function totalSupplyAllTickets(
         uint256 _eventId
     ) external view returns (uint256) {
