@@ -247,7 +247,6 @@ contract EventFactory is AccessControl, ReentrancyGuard {
      * @param _eventId The ID of the event
      * @param _ticketId The ID of the ticket
      * @param _quantity The amount of tickets to create
-     * @return Array of ticket IDs created
      */
     function createEventTicket(
         uint256 _eventId,
@@ -258,14 +257,18 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         external
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
-        returns (uint256[] memory)
     {
-        return
-            eventMapping[_eventId].createEventTicket(
-                _ticketId,
-                _quantity,
-                _price
-            );
+        eventMapping[_eventId].createEventTicket(_ticketId, _quantity, _price);
+    }
+
+    /**
+     * @dev Returns created tickets
+     * @return Array of created ticket IDs
+     */
+    function getCreatedTickets(
+        uint256 _eventId
+    ) external view returns (uint256[] memory) {
+        return eventMapping[_eventId].getCreatedTickets();
     }
 
     /**

@@ -197,13 +197,12 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
      * @param _ticketId The ID of the ticket
      * @param _quantity The quantity of tickets to mint
      * @param _price The price of the ticket
-     * @return Array of ticket IDs created
      */
     function createEventTicket(
         uint256[] calldata _ticketId,
         uint256[] calldata _quantity,
         uint256[] calldata _price
-    ) external returns (uint256[] memory) {
+    ) external {
         onlyAdmin();
 
         if (_ticketId.length < 1) {
@@ -237,7 +236,13 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
                 _price[i]
             );
         }
+    }
 
+    /**
+     * @dev Returns created tickets
+     * @return Array of created ticket IDs
+     */
+    function getCreatedTickets() external view returns (uint256[] memory) {
         return createdTicketIds;
     }
 
