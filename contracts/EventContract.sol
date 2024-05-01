@@ -236,26 +236,26 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     /**
      * @dev Buy event tickets from the contract
      * @param _ticketId The ID of the ticket
-     * @param _amount The amount of tickets to buy
+     * @param _quantity The quantity of tickets to buy
      * @param _buyer The address of the buyer
      */
     function buyTicket(
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount,
+        uint256[] calldata _quantity,
         address _buyer
-    ) external payable {
+    ) external {
         onlyAdmin();
 
-        if (_ticketId.length > 1 && _amount.length > 1) {
+        if (_ticketId.length > 1 && _quantity.length > 1) {
             safeBatchTransferFrom(
                 address(this),
                 _buyer,
                 _ticketId,
-                _amount,
+                _quantity,
                 ""
             );
             for (uint256 i = 0; i < _ticketId.length; i++) {
-                eventDetails.soldTickets += _amount[i];
+                eventDetails.soldTickets += _quantity[i];
                 emit TicketPurchased(
                     _buyer,
                     eventDetails.eventName,
@@ -268,7 +268,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
                 address(this),
                 _buyer,
                 _ticketId[0],
-                _amount[0],
+                _quantity[0],
                 ""
             );
 
@@ -280,7 +280,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
             );
 
             // update ampunt of sold tickets
-            eventDetails.soldTickets += _amount[0];
+            eventDetails.soldTickets += _quantity[0];
         }
     }
 

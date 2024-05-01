@@ -255,7 +255,6 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         uint256[] calldata _price
     )
         external
-        payable
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
@@ -266,16 +265,16 @@ contract EventFactory is AccessControl, ReentrancyGuard {
      * @dev Buys tickets for an event
      * @param _eventId The ID of the event
      * @param _ticketId The ID of the ticket
-     * @param _amount The amount of tickets to buy
+     * @param _quantity The quantity of tickets to buy
      * @param _buyer The address of the buyer
      */
     function buyTicket(
         uint256 _eventId,
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount,
+        uint256[] calldata _quantity,
         address _buyer
     ) external payable nonReentrant {
-        eventMapping[_eventId].buyTicket(_ticketId, _amount, _buyer);
+        eventMapping[_eventId].buyTicket(_ticketId, _quantity, _buyer);
     }
 
     /**
