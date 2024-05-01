@@ -5,6 +5,11 @@ import "./EventContract.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+// // errors
+// error NOT_ADMIN();
+// error INVALID_INPUT();
+// error INPUT_MISMATCH();
+
 /**
  * @title EventFactory
  * @author ...
@@ -258,6 +263,17 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
+        if (_ticketId.length < 1) {
+            revert INVALID_INPUT();
+        }
+
+        if (
+            _ticketId.length != _quantity.length &&
+            _ticketId.length != _price.length
+        ) {
+            revert INPUT_MISMATCH();
+        }
+
         eventMapping[_eventId].createEventTicket(_ticketId, _quantity, _price);
     }
 
@@ -284,6 +300,24 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         uint256[] calldata _quantity,
         address _buyer
     ) external payable nonReentrant {
+        if (_ticketId.length < 1) {
+            revert INVALID_INPUT();
+        }
+
+        if (_ticketId.length != _quantity.length) {
+            revert INPUT_MISMATCH();
+        }
+
+        uint256 totalTicketPrice;
+
+        for (uint i; i < _ticketId.length; i++) {
+            totalTicketPrice += eventMapping[_eventId].getTicketIdPrice(_ticketId[i]);
+        }
+
+        if (msg.value < totalTicketPrice) {
+            revert INSUFFICIENT_AMOUNT();
+        }
+
         eventMapping[_eventId].buyTicket(_ticketId, _quantity, _buyer);
     }
 

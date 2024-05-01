@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 error NOT_ADMIN();
 error INVALID_INPUT();
 error INPUT_MISMATCH();
+error INSUFFICIENT_AMOUNT();
 
 /**
  * @dev EventContract is a contract that represents an event
@@ -205,17 +206,6 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     ) external {
         onlyAdmin();
 
-        if (_ticketId.length < 1) {
-            revert INVALID_INPUT();
-        }
-
-        if (
-            _ticketId.length != _quantity.length &&
-            _ticketId.length != _price.length
-        ) {
-            revert INPUT_MISMATCH();
-        }
-
         // mint tickets to the contract
         _mintBatch(address(this), _ticketId, _quantity, "");
 
@@ -247,6 +237,14 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     }
 
     /**
+     * @dev Returns ticket price per ID
+     * @return Ticket ID price
+     */
+    function getTicketIdPrice(uint256 _ticketId) external view returns (uint256) {
+        return ticketPricePerId[_ticketId];
+    }
+
+    /**
      * @dev Buy event tickets from the contract
      * @param _ticketId The ID of the ticket
      * @param _quantity The quantity of tickets to buy
@@ -259,41 +257,20 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     ) external {
         onlyAdmin();
 
-        if (_ticketId.length > 1 && _quantity.length > 1) {
-            safeBatchTransferFrom(
-                address(this),
-                _buyer,
-                _ticketId,
-                _quantity,
-                ""
-            );
-            for (uint256 i = 0; i < _ticketId.length; i++) {
-                eventDetails.soldTickets += _quantity[i];
-                emit TicketPurchased(
-                    _buyer,
-                    eventDetails.eventName,
-                    eventDetails.eventId,
-                    _ticketId[i]
-                );
-            }
-        } else {
-            safeTransferFrom(
-                address(this),
-                _buyer,
-                _ticketId[0],
-                _quantity[0],
-                ""
-            );
+        // sends event tickets to the buyer
+        safeBatchTransferFrom(address(this), _buyer, _ticketId, _quantity, "");
+
+        for (uint256 i = 0; i < _ticketId.length; i++) {
+            soldTicketsPerId[_ticketId[i]] += _quantity[i];
+
+            eventDetails.soldTickets += _quantity[i];
 
             emit TicketPurchased(
                 _buyer,
                 eventDetails.eventName,
                 eventDetails.eventId,
-                _ticketId[0]
+                _ticketId[i]
             );
-
-            // update ampunt of sold tickets
-            eventDetails.soldTickets += _quantity[0];
         }
     }
 
