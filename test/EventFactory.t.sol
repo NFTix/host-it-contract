@@ -10,9 +10,9 @@ contract EventFactoryTest is Test {
     address public buyer;
     uint256 testEventId = 1;
     uint256[] testEventIds = [1, 2];
-    uint256[] testAmounts = [100, 20];
-    uint256[] testBuyEventId = [1, 2];
-    uint256[] testBuyAmount = [5, 5];
+    uint256[] testQuantity = [100, 20];
+    uint256[] testPrice = [10, 100];
+    uint256[] testBuyQuantity = [5, 5];
 
     function setUp() public {
         eventFactory = new EventFactory();
@@ -122,8 +122,14 @@ contract EventFactoryTest is Test {
 
         // Verify event updated event emitted
         assertEq(eventFactory.getEventDetails(1).eventName, "New Event Name");
-        assertEq(eventFactory.getEventDetails(1).description, "New Event Description");
-        assertEq(eventFactory.getEventDetails(1).eventAddress, "New Event Address");
+        assertEq(
+            eventFactory.getEventDetails(1).description,
+            "New Event Description"
+        );
+        assertEq(
+            eventFactory.getEventDetails(1).eventAddress,
+            "New Event Address"
+        );
         assertEq(eventFactory.getEventDetails(1).date, 2000000);
         assertEq(eventFactory.getEventDetails(1).startTime, 3000000);
         assertEq(eventFactory.getEventDetails(1).endTime, 4000000);
@@ -165,10 +171,10 @@ contract EventFactoryTest is Test {
         );
 
         // Create event tickets
-        eventFactory.createEventTicket(1, testEventIds, testAmounts);
+        eventFactory.createEventTicket(1, testEventIds, testQuantity, testPrice);
 
         // Verify event tickets created
-        assertEq(eventFactory.getEventDetails(1).totalTickets, 120);
+        assertEq(eventFactory.totalSupplyAllTickets(1), 120);
     }
 
     function testBuyTicket() public {
@@ -196,13 +202,13 @@ contract EventFactoryTest is Test {
         );
 
         // Create event tickets
-        eventFactory.createEventTicket(1, testEventIds, testAmounts);
-        eventFactory.createEventTicket(2, testEventIds, testAmounts);
+        eventFactory.createEventTicket(1, testEventIds, testQuantity, testPrice);
+        eventFactory.createEventTicket(2, testEventIds, testQuantity, testPrice);
 
         // Buy event tickets
-        eventFactory.buyTicket(1, testBuyEventId, testBuyAmount, address(1));
-        eventFactory.buyTicket(1, testBuyEventId, testBuyAmount, address(2));
-        eventFactory.buyTicket(2, testBuyEventId, testBuyAmount, address(1));
+        eventFactory.buyTicket(1, testEventIds, testBuyQuantity, address(1));
+        eventFactory.buyTicket(1, testEventIds, testBuyQuantity, address(2));
+        eventFactory.buyTicket(2, testEventIds, testBuyQuantity, address(1));
 
         // Verify event tickets purchased
         assertEq(eventFactory.getEventDetails(1).soldTickets, 20);

@@ -6,7 +6,9 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 // errors
-error NotAdmin();
+error NOT_ADMIN();
+error INVALID_INPUT();
+error INPUT_MISMATCH();
 
 /**
  * @dev EventContract is a contract that represents an event
@@ -15,12 +17,12 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     /**
      * @dev Emitted when a new event is created
      * @param eventId The ID of the new event
-     * @param eventName The name of the new event
+     * @param eventNameE The name of the new event
      * @param organizer The address of the event organizer
      */
     event EventCreated(
         uint256 indexed eventId,
-        string indexed eventName,
+        string indexed eventNameE,
         address indexed organizer
     );
 
@@ -51,31 +53,29 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     /**
      * @dev Emitted when a ticket is purchased
      * @param buyer The address of the buyer
-     * @param eventName The name of the event
+     * @param eventNameE The name of the event
      * @param eventId The ID of the event
      * @param ticketId The ID of the ticket
      */
     event TicketPurchased(
         address indexed buyer,
-        string eventName,
+        string eventNameE,
         uint256 indexed eventId,
         uint256 indexed ticketId
     );
 
     /**
      * @dev Emitted when a ticket is created
-     * @param operator The address of the operator
-     * @param from The address of the sender
+     * @param to The address of the receiver
      * @param id The ID of the ticket
-     * @param value The amount of tickets
-     * @param data The data of the ticket
+     * @param quantity The quantity of tickets
+     * @param price The price of the ticket
      */
     event TicketCreated(
-        address operator,
-        address from,
-        uint256 id,
-        uint256 value,
-        bytes data
+        address indexed to,
+        uint256 indexed id,
+        uint256 quantity,
+        uint256 indexed price
     );
 
     /**
@@ -126,6 +126,10 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     }
 
     EventDetails public eventDetails;
+    mapping(uint256 => uint256) ticketPricePerId;
+    mapping(uint256 => uint256) soldTicketsPerId;
+    mapping(uint256 => bool) ticketExists;
+    uint256[] public createdTicketIds;
 
     /**
      * @dev Initializes the contract with the event details
@@ -184,56 +188,87 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
      */
     function onlyAdmin() private view {
         if (msg.sender != admin) {
-            revert NotAdmin();
+            revert NOT_ADMIN();
         }
     }
 
     /**
      * @dev Mints event tickets to the contract
      * @param _ticketId The ID of the ticket
-     * @param _amount The amount of tickets to mint
+     * @param _quantity The quantity of tickets to mint
+     * @param _price The price of the ticket
      */
     function createEventTicket(
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount
+        uint256[] calldata _quantity,
+        uint256[] calldata _price
     ) external {
         onlyAdmin();
-        if (_ticketId.length > 1 && _amount.length > 1) {
-            _mintBatch(address(this), _ticketId, _amount, "");
-            for (uint256 i; i < _amount.length; i++) {
-                eventDetails.totalTickets += _amount[i];
-            }
-        } else {
-            uint256 _ticket = _ticketId[0];
-            uint256 amount = _amount[0];
-            _mint(address(this), _ticket, amount, "");
-            eventDetails.totalTickets += amount;
+
+        if (_ticketId.length < 1) {
+            revert INVALID_INPUT();
         }
+
+        if (
+            _ticketId.length != _quantity.length &&
+            _ticketId.length != _price.length
+        ) {
+            revert INPUT_MISMATCH();
+        }
+
+        // mint tickets to the contract
+        _mintBatch(address(this), _ticketId, _quantity, "");
+
+        for (uint256 i; i < _ticketId.length; i++) {
+            // stores the price of each ticket
+            ticketPricePerId[_ticketId[i]] = _price[i];
+
+            // track created tickets
+            if (!ticketExists[_ticketId[i]]) {
+                ticketExists[_ticketId[i]] = true;
+                createdTicketIds.push(_ticketId[i]);
+            }
+
+            emit TicketCreated(
+                address(this),
+                _ticketId[i],
+                _quantity[i],
+                _price[i]
+            );
+        }
+    }
+
+    /**
+     * @dev Returns created tickets
+     * @return Array of created ticket IDs
+     */
+    function getCreatedTickets() external view returns (uint256[] memory) {
+        return createdTicketIds;
     }
 
     /**
      * @dev Buy event tickets from the contract
      * @param _ticketId The ID of the ticket
-     * @param _amount The amount of tickets to buy
+     * @param _quantity The quantity of tickets to buy
      * @param _buyer The address of the buyer
      */
     function buyTicket(
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount,
+        uint256[] calldata _quantity,
         address _buyer
-    ) external payable {
+    ) external {
         onlyAdmin();
 
-        if (_ticketId.length > 1 && _amount.length > 1) {
+        if (_ticketId.length > 1 && _quantity.length > 1) {
             safeBatchTransferFrom(
                 address(this),
                 _buyer,
                 _ticketId,
-                _amount,
+                _quantity,
                 ""
             );
             for (uint256 i = 0; i < _ticketId.length; i++) {
-                eventDetails.soldTickets += _amount[i];
+                eventDetails.soldTickets += _quantity[i];
                 emit TicketPurchased(
                     _buyer,
                     eventDetails.eventName,
@@ -246,7 +281,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
                 address(this),
                 _buyer,
                 _ticketId[0],
-                _amount[0],
+                _quantity[0],
                 ""
             );
 
@@ -258,7 +293,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
             );
 
             // update ampunt of sold tickets
-            eventDetails.soldTickets += _amount[0];
+            eventDetails.soldTickets += _quantity[0];
         }
     }
 

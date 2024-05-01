@@ -16,12 +16,12 @@ contract EventFactory is AccessControl, ReentrancyGuard {
     /**
      * @dev Emitted when a new event is created
      * @param eventId The ID of the new event
-     * @param eventName The name of the new event
+     * @param eventNameE The name of the new event
      * @param organizer The address of the event organizer
      */
     event EventCreated(
         uint256 indexed eventId,
-        string indexed eventName,
+        string indexed eventNameE,
         address indexed organizer
     );
 
@@ -82,7 +82,6 @@ contract EventFactory is AccessControl, ReentrancyGuard {
      * @param _virtualEvent Whether the new event is virtual
      * @param _privateEvent Whether the new event is private
      */
-
     function createNewEvent(
         string memory _eventName,
         string memory _description,
@@ -247,35 +246,45 @@ contract EventFactory is AccessControl, ReentrancyGuard {
      * @dev Creates a new ticket for an event
      * @param _eventId The ID of the event
      * @param _ticketId The ID of the ticket
-     * @param _amount The amount of tickets to create
+     * @param _quantity The amount of tickets to create
      */
     function createEventTicket(
         uint256 _eventId,
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount
+        uint256[] calldata _quantity,
+        uint256[] calldata _price
     )
         external
-        payable
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
-        eventMapping[_eventId].createEventTicket(_ticketId, _amount);
+        eventMapping[_eventId].createEventTicket(_ticketId, _quantity, _price);
+    }
+
+    /**
+     * @dev Returns created tickets
+     * @return Array of created ticket IDs
+     */
+    function getCreatedTickets(
+        uint256 _eventId
+    ) external view returns (uint256[] memory) {
+        return eventMapping[_eventId].getCreatedTickets();
     }
 
     /**
      * @dev Buys tickets for an event
      * @param _eventId The ID of the event
      * @param _ticketId The ID of the ticket
-     * @param _amount The amount of tickets to buy
+     * @param _quantity The quantity of tickets to buy
      * @param _buyer The address of the buyer
      */
     function buyTicket(
         uint256 _eventId,
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount,
+        uint256[] calldata _quantity,
         address _buyer
     ) external payable nonReentrant {
-        eventMapping[_eventId].buyTicket(_ticketId, _amount, _buyer);
+        eventMapping[_eventId].buyTicket(_ticketId, _quantity, _buyer);
     }
 
     /**
