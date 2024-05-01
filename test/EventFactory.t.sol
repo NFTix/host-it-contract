@@ -174,7 +174,7 @@ contract EventFactoryTest is Test {
         eventFactory.createEventTicket(1, testEventIds, testQuantity, testPrice);
 
         // Verify event tickets created
-        assertEq(eventFactory.getEventDetails(1).totalTickets, 120);
+        assertEq(eventFactory.totalSupplyAllTickets(1), 120);
     }
 
     function testBuyTicket() public {
