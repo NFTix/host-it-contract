@@ -15,12 +15,12 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     /**
      * @dev Emitted when a new event is created
      * @param eventId The ID of the new event
-     * @param eventName The name of the new event
+     * @param eventNameE The name of the new event
      * @param organizer The address of the event organizer
      */
     event EventCreated(
         uint256 indexed eventId,
-        string indexed eventName,
+        string indexed eventNameE,
         address indexed organizer
     );
 
