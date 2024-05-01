@@ -51,13 +51,13 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     /**
      * @dev Emitted when a ticket is purchased
      * @param buyer The address of the buyer
-     * @param eventName The name of the event
+     * @param eventNameE The name of the event
      * @param eventId The ID of the event
      * @param ticketId The ID of the ticket
      */
     event TicketPurchased(
         address indexed buyer,
-        string eventName,
+        string eventNameE,
         uint256 indexed eventId,
         uint256 indexed ticketId
     );
