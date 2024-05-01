@@ -236,6 +236,7 @@ contract EventFactoryTest is Test {
                 address(1)
             )
         );
+        require(ok, string(data));
         // (bool ok, bytes memory data) = address(eventFactory).call{value: 550}(
         //     abi.encodeWithSignature(
         //         "buyTicket(uint256,uint256[],uint256[],address)",
