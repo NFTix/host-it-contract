@@ -1,0 +1,27 @@
+            - name: foundry-toolchain
+  # You may pin to the exact commit or the version.
+  # uses: foundry-rs/foundry-toolchain@8f1998e9878d786675189ef566a2e4bf24869773
+  uses: foundry-rs/foundry-toolchain@v1.2.0
+  with:
+    # Whether to cache RPC responses or not.
+
+Caching is activated by default.
+
+    cache: # optional, default is true
+    # A custom cache key to use.
+
+This key is used to identify the cache. If not provided, a default key consisting of the job id and the commit hash is used.
+
+    cache-key: # optional, default is ${{ github.job }}-${{ github.sha }}
+    # Custom cache restore keys to use.
+
+This key is used to identify the cache to restore. If not provided, a default key consisting of the job id is used.
+
+    cache-restore-keys: # optional, default is ${{ github.job }}-
+    # Foundry version.
+
+This version number has to match a released version of Foundry.
+The default value is `nightly`, which will pull the latest nightly build.
+
+    version: # optional, default is nightly
+          
