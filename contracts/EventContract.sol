@@ -128,6 +128,8 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     EventDetails public eventDetails;
     mapping(uint256 => uint256) ticketPricePerId;
     mapping(uint256 => uint256) soldTicketsPerId;
+    mapping(uint256 => bool) ticketExists;
+    uint256[] public createdTicketIds;
 
     /**
      * @dev Initializes the contract with the event details
@@ -195,12 +197,13 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
      * @param _ticketId The ID of the ticket
      * @param _quantity The quantity of tickets to mint
      * @param _price The price of the ticket
+     * @return Array of ticket IDs created
      */
     function createEventTicket(
         uint256[] calldata _ticketId,
         uint256[] calldata _quantity,
         uint256[] calldata _price
-    ) external {
+    ) external returns (uint256[] memory) {
         onlyAdmin();
 
         if (_ticketId.length < 1) {
@@ -217,12 +220,15 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         // mint tickets to the contract
         _mintBatch(address(this), _ticketId, _quantity, "");
 
-        for (uint256 i; i < _quantity.length; i++) {
-            // stores the total number of tickets minted for the event
-            eventDetails.totalTickets += _quantity[i];
-
+        for (uint256 i; i < _ticketId.length; i++) {
             // stores the price of each ticket
             ticketPricePerId[_ticketId[i]] = _price[i];
+
+            // track created tickets
+            if (!ticketExists[_ticketId[i]]) {
+                ticketExists[_ticketId[i]] = true;
+                createdTicketIds.push(_ticketId[i]);
+            }
 
             emit TicketCreated(
                 address(this),
@@ -231,6 +237,8 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
                 _price[i]
             );
         }
+
+        return createdTicketIds;
     }
 
     /**
