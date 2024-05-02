@@ -363,4 +363,25 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
             interfaceId == type(IERC1155Receiver).interfaceId ||
             super.supportsInterface(interfaceId);
     }
+
+    function ticketShare(bool successfulEvent) external {
+    onlyAdmin();
+    uint256 ticketPrice = 5; 
+    uint256 totalRevenue = eventDetails.soldTickets * ticketPrice;
+    
+    // Calculate the share percentages
+    uint256 organizerSharePercentage = 97;
+    uint256 adminSharePercentage = 3;
+    uint256 organizerShare = (totalRevenue * organizerSharePercentage) / 100;
+    
+    if (successfulEvent) {
+        payable(eventDetails.organizer).transfer(organizerShare);
+    } else {
+        for (uint256 i = 0; i < eventDetails.soldTickets; i++) {
+            address ticketHolder;  
+            uint256 refundAmount = (ticketPrice * organizerSharePercentage) / 100;
+            payable(ticketHolder).transfer(refundAmount);
+        }
+    }
+}
 }
