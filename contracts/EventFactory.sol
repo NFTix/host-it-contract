@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity 0.8.25;
 
-import "./EventContract.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "./EventContract.sol";
+import "./Registry.sol";
 
 // // errors
 // error NOT_ADMIN();
@@ -17,7 +18,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * @dev This contract uses AccessControl and ReentrancyGuard from OpenZeppelin
  */
 
-contract EventFactory is AccessControl, ReentrancyGuard {
+contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     /**
      * @dev Emitted when a new event is created
      * @param eventId The ID of the new event
