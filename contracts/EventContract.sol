@@ -132,6 +132,17 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     mapping(uint256 => bool) ticketExists;
     uint256[] public createdTicketIds;
 
+    // Mapping to store the amount of each ticket bought by each user
+    mapping(address => TicketPurchase[]) public userTickets;
+    mapping(address => uint256) public userTicketAmount;
+
+    struct TicketPurchase {
+        uint256 ticketId;
+        uint256 amount;
+    }
+
+    event RefundClaimed(address indexed user, uint256 amount);
+
     /**
      * @dev Initializes the contract with the event details
      * @param _eventId The ID of the event
@@ -339,5 +350,63 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         return
             interfaceId == type(IERC1155Receiver).interfaceId ||
             super.supportsInterface(interfaceId);
+    }
+
+    function ticketShare(bool successfulEvent) external {
+        onlyAdmin();
+        uint256 ticketPrice = 5;
+        uint256 totalRevenue = eventDetails.soldTickets * ticketPrice;
+
+        // Calculate the share percentages
+        uint256 organizerSharePercentage = 97;
+        uint256 adminSharePercentage = 3;
+        uint256 organizerShare = (totalRevenue * organizerSharePercentage) /
+            100;
+
+        if (successfulEvent) {
+            payable(eventDetails.organizer).transfer(organizerShare);
+        } else {
+            for (uint256 i = 0; i < eventDetails.soldTickets; i++) {
+                address ticketHolder;
+                uint256 refundAmount = (ticketPrice *
+                    organizerSharePercentage) / 100;
+                payable(ticketHolder).transfer(refundAmount);
+            }
+        }
+    }
+
+    function ClaimRefunds(address user) external {
+        // Check if the user has bought any tickets
+        require(userTicketAmount[user] > 0, "No tickets bought by the user");
+
+        uint256[] memory ticketIds = new uint256[](userTicketAmount[user]);
+        uint256[] memory ticketAmounts = new uint256[](userTicketAmount[user]);
+        uint256 refundAmount = 0;
+
+        // Iterate through the tickets bought by the user and calculate refund amount
+        for (uint256 i = 0; i < userTicketAmount[user]; i++) {
+            ticketIds[i] = userTickets[user][i].ticketId;
+            ticketAmounts[i] = userTickets[user][i].amount;
+            refundAmount += eventTicketPrices[ticketIds[i]] * ticketAmounts[i];
+        }
+
+        // Transfer tickets back to the contract
+        safeBatchTransferFrom(
+            user,
+            address(this),
+            ticketIds,
+            ticketAmounts,
+            ""
+        );
+
+        // Transfer tokens back to the user
+        require(refundAmount > 0, "Refund amount must be greater than zero");
+        payable(user).transfer(refundAmount);
+
+        // Reset user ticket data
+        delete userTickets[user];
+        userTicketAmount[user] = 0;
+
+        emit RefundClaimed(user, refundAmount);
     }
 }
