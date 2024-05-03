@@ -6,16 +6,36 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 // errors
-error NotAdmin();
+error NOT_ADMIN();
+error INVALID_INPUT();
+error INPUT_MISMATCH();
+error INSUFFICIENT_AMOUNT();
 
+/**
+ * @dev EventContract is a contract that represents an event
+ */
 contract EventContract is ERC1155Supply, ERC1155Holder {
-    // contract events
+    /**
+     * @dev Emitted when a new event is created
+     * @param eventId The ID of the new event
+     * @param eventNameE The name of the new event
+     * @param organizer The address of the event organizer
+     */
     event EventCreated(
         uint256 indexed eventId,
-        string indexed eventName,
+        string indexed eventNameE,
         address indexed organizer
     );
 
+    /**
+     * @dev Emitted when an event is rescheduled
+     * @param eventId The ID of the rescheduled event
+     * @param date The new date of the event
+     * @param startTime The new start time of the event
+     * @param endTime The new end time of the event
+     * @param virtualEvent Whether the event is virtual
+     * @param privateEvent Whether the event is private
+     */
     event EventRescheduled(
         uint256 indexed eventId,
         uint256 date,
@@ -25,29 +45,58 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         bool privateEvent
     );
 
+    /**
+     * @dev Emitted when an event is cancelled
+     * @param eventId The ID of the cancelled event
+     */
     event EventCancelled(uint256 indexed eventId);
 
+    /**
+     * @dev Emitted when a ticket is purchased
+     * @param buyer The address of the buyer
+     * @param eventNameE The name of the event
+     * @param eventId The ID of the event
+     * @param ticketId The ID of the ticket
+     */
     event TicketPurchased(
         address indexed buyer,
-        string eventName,
+        string eventNameE,
         uint256 indexed eventId,
         uint256 indexed ticketId
     );
 
+    /**
+     * @dev Emitted when a ticket is created
+     * @param to The address of the receiver
+     * @param id The ID of the ticket
+     * @param quantity The quantity of tickets
+     * @param price The price of the ticket
+     */
     event TicketCreated(
-        address operator,
-        address from,
-        uint256 id,
-        uint256 value,
-        bytes data
+        address indexed to,
+        uint256 indexed id,
+        uint256 quantity,
+        uint256 indexed price
     );
 
+    /**
+     * @dev Emitted when a ticket is burned
+     * @param from The address of the sender
+     * @param ticketId The ID of the ticket
+     * @param amount The amount of tickets burned
+     */
     event TicketBurned(
         address indexed from,
         uint256 indexed ticketId,
         uint256 indexed amount
     );
 
+    /**
+     * @dev Emitted when a ticket is transferred
+     * @param from The address of the sender
+     * @param to The address of the receiver
+     * @param ticketId The ID of the ticket
+     */
     event TicketTransferred(
         address indexed from,
         address indexed to,
@@ -58,6 +107,9 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     address admin;
 
     // Event variables
+    /**
+     * @dev Struct representing the details of an event
+     */
     struct EventDetails {
         uint256 eventId;
         address organizer;
@@ -75,8 +127,35 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     }
 
     EventDetails public eventDetails;
+    mapping(uint256 => uint256) ticketPricePerId;
+    mapping(uint256 => uint256) soldTicketsPerId;
+    mapping(uint256 => bool) ticketExists;
+    uint256[] public createdTicketIds;
 
-    // event...innit
+    // Mapping to store the amount of each ticket bought by each user
+    mapping(address => TicketPurchase[]) public userTickets;
+    mapping(address => uint256) public userTicketAmount;
+
+    struct TicketPurchase {
+        uint256 ticketId;
+        uint256 amount;
+    }
+
+    event RefundClaimed(address indexed user, uint256 amount);
+
+    /**
+     * @dev Initializes the contract with the event details
+     * @param _eventId The ID of the event
+     * @param _organizer The address of the event organizer
+     * @param _eventName The name of the event
+     * @param _description The description of the event
+     * @param _eventAddress The address of the event
+     * @param _date The date of the event
+     * @param _startTime The start time of the event
+     * @param _endTime The end time of the event
+     * @param _virtualEvent Whether the event is virtual
+     * @param _privateEvent Whether the event is private
+     */
     constructor(
         uint256 _eventId,
         address _organizer,
@@ -116,84 +195,115 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         _setApprovalForAll(address(this), admin, true);
     }
 
-    // access to only admin: factory contract
+    /**
+     * @dev Restricts access to only the admin
+     */
     function onlyAdmin() private view {
         if (msg.sender != admin) {
-            revert NotAdmin();
+            revert NOT_ADMIN();
         }
     }
 
-    // mint event tickets to contract
+    /**
+     * @dev Mints event tickets to the contract
+     * @param _ticketId The ID of the ticket
+     * @param _quantity The quantity of tickets to mint
+     * @param _price The price of the ticket
+     */
     function createEventTicket(
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount
+        uint256[] calldata _quantity,
+        uint256[] calldata _price
     ) external {
         onlyAdmin();
-        if (_ticketId.length > 1 && _amount.length > 1) {
-            _mintBatch(address(this), _ticketId, _amount, "");
-            for (uint256 i; i < _amount.length; i++) {
-                eventDetails.totalTickets += _amount[i];
+
+        // mint tickets to the contract
+        _mintBatch(address(this), _ticketId, _quantity, "");
+
+        for (uint256 i; i < _ticketId.length; i++) {
+            // stores the price of each ticket
+            ticketPricePerId[_ticketId[i]] = _price[i];
+
+            // track created tickets
+            if (!ticketExists[_ticketId[i]]) {
+                ticketExists[_ticketId[i]] = true;
+                createdTicketIds.push(_ticketId[i]);
             }
-        } else {
-            uint256 _ticket = _ticketId[0];
-            uint256 amount = _amount[0];
-            _mint(address(this), _ticket, amount, "");
-            eventDetails.totalTickets += amount;
+
+            emit TicketCreated(
+                address(this),
+                _ticketId[i],
+                _quantity[i],
+                _price[i]
+            );
         }
     }
 
-    // buy event ticket
+    /**
+     * @dev Returns created tickets
+     * @return Array of created ticket IDs
+     */
+    function getCreatedTickets() external view returns (uint256[] memory) {
+        return createdTicketIds;
+    }
+
+    /**
+     * @dev Returns ticket price per ID
+     * @return Ticket ID price
+     */
+    function getTicketIdPrice(uint256 _ticketId) external view returns (uint256) {
+        return ticketPricePerId[_ticketId];
+    }
+
+    /**
+     * @dev Buy event tickets from the contract
+     * @param _ticketId The ID of the ticket
+     * @param _quantity The quantity of tickets to buy
+     * @param _buyer The address of the buyer
+     */
     function buyTicket(
         uint256[] calldata _ticketId,
-        uint256[] calldata _amount,
+        uint256[] calldata _quantity,
         address _buyer
-    ) external payable {
+    ) external {
         onlyAdmin();
 
-        if (_ticketId.length > 1 && _amount.length > 1) {
-            safeBatchTransferFrom(
-                address(this),
-                _buyer,
-                _ticketId,
-                _amount,
-                ""
-            );
-            for (uint256 i = 0; i < _ticketId.length; i++) {
-                eventDetails.soldTickets += _amount[i];
-                emit TicketPurchased(
-                    _buyer,
-                    eventDetails.eventName,
-                    eventDetails.eventId,
-                    _ticketId[i]
-                );
-            }
-        } else {
-            safeTransferFrom(
-                address(this),
-                _buyer,
-                _ticketId[0],
-                _amount[0],
-                ""
-            );
+        // sends event tickets to the buyer
+        safeBatchTransferFrom(address(this), _buyer, _ticketId, _quantity, "");
+
+        for (uint256 i = 0; i < _ticketId.length; i++) {
+            soldTicketsPerId[_ticketId[i]] += _quantity[i];
+
+            eventDetails.soldTickets += _quantity[i];
 
             emit TicketPurchased(
                 _buyer,
                 eventDetails.eventName,
                 eventDetails.eventId,
-                _ticketId[0]
+                _ticketId[i]
             );
-
-            // update ampunt of sold tickets
-            eventDetails.soldTickets += _amount[0];
         }
     }
 
-    // return event details
+    /**
+     * @dev Returns the event details
+     * @return The event details
+     */
     function getEventDetails() external view returns (EventDetails memory) {
         return eventDetails;
     }
 
-    // Update event details
+    /**
+     * @dev Updates the event details
+     * @param _eventName The new name of the event
+     * @param _description The new description of the event
+     * @param _eventAddress The new address of the event
+     * @param _date The new date of the event
+     * @param _startTime The new start time of the event
+     * @param _endTime The new end time of the event
+     * @param _virtualEvent Whether the event is virtual
+     * @param _privateEvent Whether the event is private
+     */
     function updateEventDetails(
         string memory _eventName,
         string memory _description,
@@ -215,7 +325,9 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         eventDetails.privateEvent = _privateEvent;
     }
 
-    // cancel event
+    /**
+     * @dev Cancels the event
+     */
     function cancelEvent() external {
         onlyAdmin();
         eventDetails.isCancelled = true;
@@ -223,7 +335,10 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         emit EventCancelled(eventDetails.eventId);
     }
 
-    // set event URI
+    /**
+     * @dev Sets the event URI
+     * @param newUri_ The new URI of the event
+     */
     function setEventURI(string memory newUri_) external {
         onlyAdmin();
         _setURI(newUri_);
@@ -235,5 +350,63 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         return
             interfaceId == type(IERC1155Receiver).interfaceId ||
             super.supportsInterface(interfaceId);
+    }
+
+    function ticketShare(bool successfulEvent) external {
+        onlyAdmin();
+        uint256 ticketPrice = 5;
+        uint256 totalRevenue = eventDetails.soldTickets * ticketPrice;
+
+        // Calculate the share percentages
+        uint256 organizerSharePercentage = 97;
+        uint256 adminSharePercentage = 3;
+        uint256 organizerShare = (totalRevenue * organizerSharePercentage) /
+            100;
+
+        if (successfulEvent) {
+            payable(eventDetails.organizer).transfer(organizerShare);
+        } else {
+            for (uint256 i = 0; i < eventDetails.soldTickets; i++) {
+                address ticketHolder;
+                uint256 refundAmount = (ticketPrice *
+                    organizerSharePercentage) / 100;
+                payable(ticketHolder).transfer(refundAmount);
+            }
+        }
+    }
+
+    function ClaimRefunds(address user) external {
+        // Check if the user has bought any tickets
+        require(userTicketAmount[user] > 0, "No tickets bought by the user");
+
+        uint256[] memory ticketIds = new uint256[](userTicketAmount[user]);
+        uint256[] memory ticketAmounts = new uint256[](userTicketAmount[user]);
+        uint256 refundAmount = 0;
+
+        // Iterate through the tickets bought by the user and calculate refund amount
+        for (uint256 i = 0; i < userTicketAmount[user]; i++) {
+            ticketIds[i] = userTickets[user][i].ticketId;
+            ticketAmounts[i] = userTickets[user][i].amount;
+            refundAmount += eventTicketPrices[ticketIds[i]] * ticketAmounts[i];
+        }
+
+        // Transfer tickets back to the contract
+        safeBatchTransferFrom(
+            user,
+            address(this),
+            ticketIds,
+            ticketAmounts,
+            ""
+        );
+
+        // Transfer tokens back to the user
+        require(refundAmount > 0, "Refund amount must be greater than zero");
+        payable(user).transfer(refundAmount);
+
+        // Reset user ticket data
+        delete userTickets[user];
+        userTicketAmount[user] = 0;
+
+        emit RefundClaimed(user, refundAmount);
     }
 }
