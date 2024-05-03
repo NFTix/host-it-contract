@@ -311,7 +311,9 @@ contract EventFactory is AccessControl, ReentrancyGuard {
         uint256 totalTicketPrice;
 
         for (uint i; i < _ticketId.length; i++) {
-            totalTicketPrice += eventMapping[_eventId].getTicketIdPrice(_ticketId[i]);
+            totalTicketPrice +=
+                eventMapping[_eventId].getTicketIdPrice(_ticketId[i]) *
+                _quantity[i];
         }
 
         if (msg.value < totalTicketPrice) {
