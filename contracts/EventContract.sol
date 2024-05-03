@@ -251,7 +251,9 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
      * @dev Returns ticket price per ID
      * @return Ticket ID price
      */
-    function getTicketIdPrice(uint256 _ticketId) external view returns (uint256) {
+    function getTicketIdPrice(
+        uint256 _ticketId
+    ) external view returns (uint256) {
         return ticketPricePerId[_ticketId];
     }
 
@@ -387,7 +389,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         for (uint256 i = 0; i < userTicketAmount[user]; i++) {
             ticketIds[i] = userTickets[user][i].ticketId;
             ticketAmounts[i] = userTickets[user][i].amount;
-            refundAmount += eventTicketPrices[ticketIds[i]] * ticketAmounts[i];
+            refundAmount += ticketPricePerId[ticketIds[i]] * ticketAmounts[i];
         }
 
         // Transfer tickets back to the contract
