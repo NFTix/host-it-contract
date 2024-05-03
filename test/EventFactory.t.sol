@@ -226,8 +226,7 @@ contract EventFactoryTest is Test {
         deal(address(2), 1000);
 
         // Buy event tickets
-        // (bool ok, bytes memory data) = address(this).call{value: 550}(eventFactory.buyTicket(1, testEventIds, testBuyQuantity, address(1)));
-        (bool ok, bytes memory data) = address(eventFactory).call{value: 550}(
+        (bool ok, bytes memory data) = address(eventFactory).call{value: 450}(
             abi.encodeWithSignature(
                 "buyTicket(uint256,uint256[],uint256[],address)",
                 1,
@@ -237,26 +236,6 @@ contract EventFactoryTest is Test {
             )
         );
         require(ok, string(data));
-        // (bool ok, bytes memory data) = address(eventFactory).call{value: 550}(
-        //     abi.encodeWithSignature(
-        //         "buyTicket(uint256,uint256[],uint256[],address)",
-        //         1,
-        //         testEventIds,
-        //         testBuyQuantity,
-        //         address(2)
-        //     )
-        // );
-        // (bool ok, bytes memory data) = address(eventFactory).call{value: 550}(
-        //     abi.encodeWithSignature(
-        //         "buyTicket(uint256,uint256[],uint256[],address)",
-        //         2,
-        //         testEventIds,
-        //         testBuyQuantity,
-        //         address(1)
-        //     )
-        // );
-        // eventFactory.buyTicket(1, testEventIds, testBuyQuantity, address(2));
-        // eventFactory.buyTicket(2, testEventIds, testBuyQuantity, address(1));
 
         // Verify event tickets purchased
         assertEq(eventFactory.getEventDetails(1).soldTickets, 10);
@@ -264,7 +243,7 @@ contract EventFactoryTest is Test {
 
         // Verify event ticket in buyer account
         assertEq(eventFactory.balanceOfTickets(1, address(1), 1), 5);
-        // assertEq(eventFactory.balanceOfTickets(1, address(1), 2), 5);
+        assertEq(eventFactory.balanceOfTickets(1, address(1), 2), 5);
         // assertEq(eventFactory.balanceOfTickets(1, address(2), 1), 5);
         // assertEq(eventFactory.balanceOfTickets(1, address(2), 2), 5);
         // assertEq(eventFactory.balanceOfTickets(2, address(1), 1), 5);
