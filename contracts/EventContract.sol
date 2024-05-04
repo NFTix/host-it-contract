@@ -10,6 +10,7 @@ error NOT_ADMIN();
 error INVALID_INPUT();
 error INPUT_MISMATCH();
 error INSUFFICIENT_AMOUNT();
+error UNREGISTERED_USER();
 
 /**
  * @dev EventContract is a contract that represents an event
