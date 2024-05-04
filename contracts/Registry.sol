@@ -6,57 +6,73 @@ contract Registry {
     error ALREADY_EXIST();
     error ADDRESS_ZERO();
 
-    event EnsRegistered(string email, address addr);
+    event ENSRegistered(bytes32 email, address addr);
 
-    struct Ens {
+    struct ENS {
         bytes32 email;
         address walletAddress;
         string avatar;
         bool isRegistered;
     }
 
-    Ens[] users;
-    mapping(bytes32 => Ens) ens;
-    mapping(address => Ens) ensByAddr;
+    ENS[] users;
+    mapping(address => ENS) ensByAddr;
+    mapping(address => mapping(bytes32 => ENS)) ens;
 
     /// @notice this function registers an ens it maps a byte32 to a struct of ens
     /// @param _email is the name user want to use for. ens
     /// @param _avatar a url string that points to the location of the avatar on a decentralized storage
-    function registerEns(string memory _email, string memory _avatar) external {
+    function registerENS(string memory _email, string memory _avatar) external {
         bytes32 _emailHash = keccak256(abi.encodePacked(_email));
 
-        if (ens[_emailHash].isRegistered) revert ALREADY_EXIST();
+        if (ens[msg.sender][_emailHash].isRegistered) revert ALREADY_EXIST();
 
-        Ens memory _ens = Ens(_emailHash, msg.sender, _avatar, true);
+        ENS memory _ens = ENS(_emailHash, msg.sender, _avatar, true);
 
-        ens[_emailHash] = _ens;
+        ens[msg.sender][_emailHash] = _ens;
 
         ensByAddr[msg.sender] = _ens;
 
         users.push(_ens);
 
-        emit EnsRegistered(_email, msg.sender);
+        emit ENSRegistered(_emailHash, msg.sender);
     }
 
-    /// @notice this is a read function that accepts an ens and returns a struct of Ens for a user
+    /// @notice this function registers an ens it maps a byte32 to a struct of ens
+    /// @param _oldEmail is the name user want to use for. ens
+    /// @param _newEmail is the name user want to use for. ens
+    /// @param _avatar a url string that points to the location of the avatar on a decentralized storage
+    function updateENS(string memory _oldEmail, string memory _newEmail, string memory _avatar) external {
+        bytes32 _oldEmailHash = keccak256(abi.encodePacked(_oldEmail));
+        bytes32 _newEmailHash = keccak256(abi.encodePacked(_newEmail));
+
+        if (ens[msg.sender][_newEmailHash].isRegistered) revert ALREADY_EXIST();
+
+        delete ens[msg.sender][_oldEmailHash];
+
+        ENS memory _ens = ENS(_newEmailHash, msg.sender, _avatar, true);
+
+        ens[msg.sender][_newEmailHash] = _ens;
+
+        ensByAddr[msg.sender] = _ens;
+
+        emit ENSRegistered(_newEmailHash, msg.sender);
+    }
+
+    /// @notice this is a read function that accepts an ens and returns a struct of ENS for a user
     /// @param _email is the name user want to use for. ens
-    function getEns(string memory _email) external view returns (Ens memory) {
+    function getENS(string memory _email) external view returns (ENS memory) {
         bytes32 _emailHash = keccak256(abi.encodePacked(_email));
-        return ens[_emailHash];
+        return ens[msg.sender][_emailHash];
     }
 
     /// @notice this function returns all the ens saved in the system
-    function getAllEns() external view returns (Ens[] memory) {
+    function getAllENS() external view returns (ENS[] memory) {
         return users;
     }
 
     /// @notice this function returns an ens using address
-    function getEnsByAddress() external view returns (Ens memory) {
+    function getENSByAddress() external view returns (ENS memory) {
         return ensByAddr[msg.sender];
-    }
-
-    /// @notice this function returns an ens struct using _ens string
-    function getEnsByBytes() external view returns (Ens memory) {
-        return ens[keccak256(abi.encodePacked("ens"))];
     }
 }
