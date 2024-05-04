@@ -104,8 +104,8 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         uint256 indexed ticketId
     );
 
-    // admin role
-    address admin;
+    // factoryContract address
+    address factoryContract;
 
     // Event variables
     /**
@@ -169,7 +169,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         bool _virtualEvent,
         bool _privateEvent
     ) ERC1155("") {
-        admin = msg.sender;
+     factoryContract = msg.sender;
 
         eventDetails = EventDetails({
             eventId: _eventId,
@@ -193,14 +193,14 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
             eventDetails.organizer
         );
 
-        _setApprovalForAll(address(this), admin, true);
+        _setApprovalForAll(address(this), factoryContract, true);
     }
 
     /**
-     * @dev Restricts access to only the admin
+     * @dev Restricts access to only the factoryContract
      */
-    function onlyAdmin() private view {
-        if (msg.sender != admin) {
+    function onlyFactoryContract() private view {
+        if (msg.sender != factoryContract) {
             revert NOT_ADMIN();
         }
     }
@@ -216,7 +216,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         uint256[] calldata _quantity,
         uint256[] calldata _price
     ) external {
-        onlyAdmin();
+        onlyFactoryContract();
 
         // mint tickets to the contract
         _mintBatch(address(this), _ticketId, _quantity, "");
@@ -269,7 +269,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         uint256[] calldata _quantity,
         address _buyer
     ) external {
-        onlyAdmin();
+        onlyFactoryContract();
 
         // sends event tickets to the buyer
         safeBatchTransferFrom(address(this), _buyer, _ticketId, _quantity, "");
@@ -317,7 +317,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         bool _virtualEvent,
         bool _privateEvent
     ) external {
-        onlyAdmin();
+        onlyFactoryContract();
         eventDetails.eventName = _eventName;
         eventDetails.description = _description;
         eventDetails.eventAddress = _eventAddress;
@@ -332,7 +332,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
      * @dev Cancels the event
      */
     function cancelEvent() external {
-        onlyAdmin();
+        onlyFactoryContract();
         eventDetails.isCancelled = true;
 
         emit EventCancelled(eventDetails.eventId);
@@ -343,7 +343,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
      * @param newUri_ The new URI of the event
      */
     function setEventURI(string memory newUri_) external {
-        onlyAdmin();
+        onlyFactoryContract();
         _setURI(newUri_);
     }
 
@@ -353,63 +353,5 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         return
             interfaceId == type(IERC1155Receiver).interfaceId ||
             super.supportsInterface(interfaceId);
-    }
-
-    function ticketShare(bool successfulEvent) external {
-        onlyAdmin();
-        uint256 ticketPrice = 5;
-        uint256 totalRevenue = eventDetails.soldTickets * ticketPrice;
-
-        // Calculate the share percentages
-        uint256 organizerSharePercentage = 97;
-        uint256 adminSharePercentage = 3;
-        uint256 organizerShare = (totalRevenue * organizerSharePercentage) /
-            100;
-
-        if (successfulEvent) {
-            payable(eventDetails.organizer).transfer(organizerShare);
-        } else {
-            for (uint256 i = 0; i < eventDetails.soldTickets; i++) {
-                address ticketHolder;
-                uint256 refundAmount = (ticketPrice *
-                    organizerSharePercentage) / 100;
-                payable(ticketHolder).transfer(refundAmount);
-            }
-        }
-    }
-
-    function ClaimRefunds(address user) external {
-        // Check if the user has bought any tickets
-        require(userTicketAmount[user] > 0, "No tickets bought by the user");
-
-        uint256[] memory ticketIds = new uint256[](userTicketAmount[user]);
-        uint256[] memory ticketAmounts = new uint256[](userTicketAmount[user]);
-        uint256 refundAmount = 0;
-
-        // Iterate through the tickets bought by the user and calculate refund amount
-        for (uint256 i = 0; i < userTicketAmount[user]; i++) {
-            ticketIds[i] = userTickets[user][i].ticketId;
-            ticketAmounts[i] = userTickets[user][i].amount;
-            refundAmount += ticketPricePerId[ticketIds[i]] * ticketAmounts[i];
-        }
-
-        // Transfer tickets back to the contract
-        safeBatchTransferFrom(
-            user,
-            address(this),
-            ticketIds,
-            ticketAmounts,
-            ""
-        );
-
-        // Transfer tokens back to the user
-        require(refundAmount > 0, "Refund amount must be greater than zero");
-        payable(user).transfer(refundAmount);
-
-        // Reset user ticket data
-        delete userTickets[user];
-        userTicketAmount[user] = 0;
-
-        emit RefundClaimed(user, refundAmount);
     }
 }
