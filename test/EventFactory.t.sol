@@ -19,6 +19,7 @@ contract EventFactoryTest is Test {
         eventFactory = new EventFactory();
         organizer = address(1);
         buyer = address(2);
+        eventFactory.registerENS("", "");
     }
 
     function testCreateNewEvent() public {
