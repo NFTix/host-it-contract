@@ -98,6 +98,10 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         bool _virtualEvent,
         bool _privateEvent
     ) external {
+        if (!ensByAddr[msg.sender].isRegistered) {
+            revert UNREGISTERED_USER();
+        }
+
         EventContract newEvent = new EventContract(
             ++eventId,
             msg.sender,
@@ -199,6 +203,10 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
+        if (!ensByAddr[msg.sender].isRegistered) {
+            revert UNREGISTERED_USER();
+        }
+
         // Ensure event exists
         require(
             address(eventMapping[_eventId]) != address(0),
@@ -243,6 +251,10 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
+        if (!ensByAddr[msg.sender].isRegistered) {
+            revert UNREGISTERED_USER();
+        }
+
         eventMapping[_eventId].cancelEvent();
 
         emit EventCancelled(_eventId);
@@ -264,6 +276,10 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
+        if (!ensByAddr[msg.sender].isRegistered) {
+            revert UNREGISTERED_USER();
+        }
+
         if (_ticketId.length < 1) {
             revert INVALID_INPUT();
         }
@@ -301,6 +317,10 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         uint256[] calldata _quantity,
         address _buyer
     ) external payable nonReentrant {
+        if (!ensByAddr[msg.sender].isRegistered) {
+            revert UNREGISTERED_USER();
+        }
+        
         if (_ticketId.length < 1) {
             revert INVALID_INPUT();
         }
