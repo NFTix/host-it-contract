@@ -320,7 +320,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         if (!ensByAddr[msg.sender].isRegistered) {
             revert UNREGISTERED_USER();
         }
-        
+
         if (_ticketId.length < 1) {
             revert INVALID_INPUT();
         }
@@ -330,10 +330,11 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         }
 
         uint256 totalTicketPrice;
+        EventContract eventContract = eventMapping[_eventId];
 
         for (uint i; i < _ticketId.length; i++) {
             totalTicketPrice +=
-                eventMapping[_eventId].getTicketIdPrice(_ticketId[i]) *
+                eventContract.getTicketIdPrice(_ticketId[i]) *
                 _quantity[i];
         }
 
@@ -341,7 +342,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
             revert INSUFFICIENT_AMOUNT();
         }
 
-        eventMapping[_eventId].buyTicket(_ticketId, _quantity, _buyer);
+        eventContract.buyTicket(_ticketId, _quantity, _buyer);
     }
 
     /**
