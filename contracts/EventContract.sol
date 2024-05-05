@@ -169,7 +169,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         bool _virtualEvent,
         bool _privateEvent
     ) ERC1155("") {
-     factoryContract = msg.sender;
+        factoryContract = msg.sender;
 
         eventDetails = EventDetails({
             eventId: _eventId,
@@ -252,9 +252,11 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
      * @dev Returns ticket price per ID
      * @return Ticket ID price
      */
-    function getTicketIdPrice(
-        uint256 _ticketId
-    ) external view returns (uint256) {
+    function getTicketIdPrice(uint256 _ticketId)
+        external
+        view
+        returns (uint256)
+    {
         return ticketPricePerId[_ticketId];
     }
 
@@ -347,9 +349,13 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         _setURI(newUri_);
     }
 
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view virtual override(ERC1155, ERC1155Holder) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC1155, ERC1155Holder)
+        returns (bool)
+    {
         return
             interfaceId == type(IERC1155Receiver).interfaceId ||
             super.supportsInterface(interfaceId);

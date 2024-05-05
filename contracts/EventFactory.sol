@@ -6,15 +6,21 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./EventContract.sol";
 import "./Registry.sol";
 
+error EVENT_DOES_NOT_EXIST();
+error INVALID_START_TIME();
+
 /**
  * @title EventFactory
- * @author 
+ * @author
  * @notice This contract is a factory for creating and managing events
  * @dev This contract uses AccessControl and ReentrancyGuard from OpenZeppelin
  * @dev This contract uses AccessControl and ReentrancyGuard from OpenZeppelin
  */
-
 contract EventFactory is AccessControl, ReentrancyGuard, Registry {
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @dev Emitted when a new event is created
      * @param eventId The ID of the new event
@@ -68,10 +74,19 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         address indexed newOrganizer
     );
 
-    // state variables
+    /*//////////////////////////////////////////////////////////////
+                            EVENT FACTORY STORAGE
+    //////////////////////////////////////////////////////////////*/
+
     uint256 eventId;
-    mapping(uint256 => EventContract) public eventMapping;
-    mapping(address => uint) name;
+    EventContract[] events;
+    mapping(address => EventContract[]) eventsCreatedByOrganizer;
+    mapping(address => EventContract[]) boughtTicketsByUser;
+    mapping(address => mapping(uint256 => EventContract[])) boughtTicketsByUserPerId;
+
+    /*//////////////////////////////////////////////////////////////
+                            EVENT FACTORY LOGIC
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @dev Creates a new event
@@ -85,6 +100,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      * @param _privateEvent Whether the new event is private
      */
     function createNewEvent(
+        address _organizer,
         string memory _eventName,
         string memory _description,
         string memory _eventAddress,
@@ -94,13 +110,11 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         bool _virtualEvent,
         bool _privateEvent
     ) external {
-        if (!ensByAddr[msg.sender].isRegistered) {
-            revert UNREGISTERED_USER();
-        }
+        if (!ensByAddr[_organizer].isRegistered) revert UNREGISTERED_USER();
 
         EventContract newEvent = new EventContract(
-            ++eventId,
-            msg.sender,
+            eventId,
+            _organizer,
             _eventName,
             _description,
             _eventAddress,
@@ -111,7 +125,8 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
             _privateEvent
         );
 
-        eventMapping[eventId] = newEvent;
+        events.push(newEvent);
+        eventsCreatedByOrganizer[_organizer].push(newEvent);
 
         // grant the organizer a specific role for this event
         bytes32 defaultEventIdRole = keccak256(
@@ -120,11 +135,14 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         bytes32 eventIdRole = keccak256(
             abi.encodePacked("EVENT_ORGANIZER", eventId)
         );
-        require(_grantRole(defaultEventIdRole, msg.sender));
-        require(_grantRole(eventIdRole, msg.sender));
+        require(_grantRole(defaultEventIdRole, _organizer));
+        require(_grantRole(eventIdRole, _organizer));
 
         // emit event creation
-        emit EventCreated(eventId, _eventName, msg.sender);
+        emit EventCreated(eventId, _eventName, _organizer);
+
+        // increment eventId
+        eventId++;
     }
 
     /**
@@ -138,7 +156,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     )
         external
         onlyRole(
-            keccak256(abi.encodePacked("DEFAULT_EVENT_ORGANIZER", eventId))
+            keccak256(abi.encodePacked("DEFAULT_EVENT_ORGANIZER", _eventId))
         )
     {
         require(
@@ -162,7 +180,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     )
         external
         onlyRole(
-            keccak256(abi.encodePacked("DEFAULT_EVENT_ORGANIZER", eventId))
+            keccak256(abi.encodePacked("DEFAULT_EVENT_ORGANIZER", _eventId))
         )
     {
         require(
@@ -186,6 +204,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      */
     function updateEvent(
         uint256 _eventId,
+        address _organizer,
         string memory _eventName,
         string memory _description,
         string memory _eventAddress,
@@ -199,21 +218,17 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
-        if (!ensByAddr[msg.sender].isRegistered) {
-            revert UNREGISTERED_USER();
-        }
+        if (!ensByAddr[_organizer].isRegistered) revert UNREGISTERED_USER();
+
+        EventContract eventContract = events[_eventId];
 
         // Ensure event exists
-        require(
-            address(eventMapping[_eventId]) != address(0),
-            "Event does not exist"
-        );
+        if (address(eventContract) == address(0)) revert EVENT_DOES_NOT_EXIST();
 
-        // Check if the event is in the future
-        require(block.timestamp < _startTime, "Event must be in the future");
+        // Check if the event has not started yet
+        if (_startTime > block.timestamp) revert INVALID_START_TIME();
 
         // Update event details
-        EventContract eventContract = eventMapping[_eventId];
         eventContract.updateEventDetails(
             _eventName,
             _description,
@@ -241,17 +256,21 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      * @param _eventId The ID of the event
      */
     function cancelEvent(
-        uint256 _eventId
+        uint256 _eventId,
+        address _organizer
     )
         external
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
-        if (!ensByAddr[msg.sender].isRegistered) {
-            revert UNREGISTERED_USER();
-        }
+        if (!ensByAddr[_organizer].isRegistered) revert UNREGISTERED_USER();
 
-        eventMapping[_eventId].cancelEvent();
+        EventContract eventContract = events[_eventId];
+
+        // Ensure event exists
+        if (address(eventContract) == address(0)) revert EVENT_DOES_NOT_EXIST();
+
+        eventContract.cancelEvent();
 
         emit EventCancelled(_eventId);
     }
@@ -259,86 +278,100 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     /**
      * @dev Creates a new ticket for an event
      * @param _eventId The ID of the event
-     * @param _ticketId The ID of the ticket
+     * @param _ticketIds The ID of the ticket
      * @param _quantity The amount of tickets to create
+     * @param _prices The amount of tickets to create
      */
     function createEventTicket(
         uint256 _eventId,
-        uint256[] calldata _ticketId,
+        address _organizer,
+        uint256[] calldata _ticketIds,
         uint256[] calldata _quantity,
-        uint256[] calldata _price
+        uint256[] calldata _prices
     )
         external
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
-        if (!ensByAddr[msg.sender].isRegistered) {
-            revert UNREGISTERED_USER();
-        }
+        if (!ensByAddr[_organizer].isRegistered) revert UNREGISTERED_USER();
 
-        if (_ticketId.length < 1) {
-            revert INVALID_INPUT();
-        }
+        EventContract eventContract = events[_eventId];
+
+        // Ensure event exists
+        if (address(eventContract) == address(0)) revert EVENT_DOES_NOT_EXIST();
+
+        uint256 idsLength = _ticketIds.length;
+
+        if (idsLength < 1) revert INVALID_INPUT();
 
         if (
-            _ticketId.length != _quantity.length &&
-            _ticketId.length != _price.length
-        ) {
-            revert INPUT_MISMATCH();
-        }
+            idsLength != _quantity.length &&
+            idsLength != _prices.length
+        ) revert INPUT_MISMATCH();
 
-        eventMapping[_eventId].createEventTicket(_ticketId, _quantity, _price);
+        eventContract.createEventTicket(_ticketIds, _quantity, _prices);
     }
 
     /**
      * @dev Returns created tickets
+     * @param _eventId The ID of the event
      * @return Array of created ticket IDs
      */
     function getCreatedTickets(
         uint256 _eventId
     ) external view returns (uint256[] memory) {
-        return eventMapping[_eventId].getCreatedTickets();
+        return events[_eventId].getCreatedTickets();
     }
 
     /**
      * @dev Buys tickets for an event
      * @param _eventId The ID of the event
-     * @param _ticketId The ID of the ticket
-     * @param _quantity The quantity of tickets to buy
+     * @param _ticketIds The IDs of the tickets
+     * @param _quantity The quantity of each tickets to buy
      * @param _buyer The address of the buyer
      */
     function buyTicket(
         uint256 _eventId,
-        uint256[] calldata _ticketId,
+        uint256[] calldata _ticketIds,
         uint256[] calldata _quantity,
         address _buyer
     ) external payable nonReentrant {
-        if (!ensByAddr[msg.sender].isRegistered) {
-            revert UNREGISTERED_USER();
-        }
+        if (!ensByAddr[_buyer].isRegistered) revert UNREGISTERED_USER();
 
-        if (_ticketId.length < 1) {
-            revert INVALID_INPUT();
-        }
+        EventContract eventContract = events[_eventId];
 
-        if (_ticketId.length != _quantity.length) {
-            revert INPUT_MISMATCH();
-        }
+        // Ensure event exists
+        if (address(eventContract) == address(0)) revert EVENT_DOES_NOT_EXIST();
+
+        uint256 idsLength = _ticketIds.length;
+
+        if (idsLength < 1) revert INVALID_INPUT();
+
+        if (idsLength != _quantity.length) revert INPUT_MISMATCH();
 
         uint256 totalTicketPrice;
-        EventContract eventContract = eventMapping[_eventId];
 
-        for (uint i; i < _ticketId.length; i++) {
+        for (uint i; i < idsLength; ) {
             totalTicketPrice +=
-                eventContract.getTicketIdPrice(_ticketId[i]) *
+                eventContract.getTicketIdPrice(_ticketIds[i]) *
                 _quantity[i];
+
+            // An array can't have a total length
+            // larger than the max uint256 value.
+            unchecked {
+                ++i;
+            }
         }
 
         if (msg.value < totalTicketPrice) {
             revert INSUFFICIENT_AMOUNT();
         }
 
-        eventContract.buyTicket(_ticketId, _quantity, _buyer);
+        eventContract.buyTicket(_ticketIds, _quantity, _buyer);
+
+        boughtTicketsByUserPerId[_buyer][_eventId].push(eventContract);
+
+        boughtTicketsByUser[_buyer].push(eventContract);
     }
 
     /**
@@ -353,7 +386,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         address _account,
         uint256 _ticketId
     ) external view returns (uint256) {
-        return eventMapping[_eventId].balanceOf(_account, _ticketId);
+        return events[_eventId].balanceOf(_account, _ticketId);
     }
 
     /**
@@ -364,7 +397,25 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     function getEventDetails(
         uint256 _eventId
     ) external view returns (EventContract.EventDetails memory) {
-        return (eventMapping[_eventId].getEventDetails());
+        return events[_eventId].getEventDetails();
+    }
+
+    /**
+     * @dev Returns all events created by an organizer
+     * @return Array of organizers' events
+     */
+    function getAllEventsByOrganizer(
+        address _organizer
+    ) external view returns (EventContract[] memory) {
+        return eventsCreatedByOrganizer[_organizer];
+    }
+
+    /**
+     * @dev Returns all events
+     * @return Array of events
+     */
+    function getAllEvents() external view returns (EventContract[] memory) {
+        return events;
     }
 
     /**
@@ -377,7 +428,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         uint256 _eventId,
         uint256 _ticketId
     ) external view returns (uint256) {
-        return eventMapping[_eventId].totalSupply(_ticketId);
+        return events[_eventId].totalSupply(_ticketId);
     }
 
     /**
@@ -388,7 +439,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     function totalSupplyAllTickets(
         uint256 _eventId
     ) external view returns (uint256) {
-        return eventMapping[_eventId].totalSupply();
+        return events[_eventId].totalSupply();
     }
 
     receive() external payable {}
