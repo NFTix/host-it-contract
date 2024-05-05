@@ -6,15 +6,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./EventContract.sol";
 import "./Registry.sol";
 
-// // errors
-// error NOT_ADMIN();
-// error INVALID_INPUT();
-// error INPUT_MISMATCH();
-
 /**
  * @title EventFactory
- * @author ...
+ * @author 
  * @notice This contract is a factory for creating and managing events
+ * @dev This contract uses AccessControl and ReentrancyGuard from OpenZeppelin
  * @dev This contract uses AccessControl and ReentrancyGuard from OpenZeppelin
  */
 
@@ -40,7 +36,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      * @param virtualEvent Whether the event is virtual
      * @param privateEvent Whether the event is private
      */
-    event EventRescheduled(
+    event EventUpdated(
         uint256 indexed eventId,
         uint256 date,
         uint256 startTime,
@@ -230,7 +226,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         );
 
         // Emit event updated
-        emit EventRescheduled(
+        emit EventUpdated(
             _eventId,
             _date,
             _startTime,
@@ -320,7 +316,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         if (!ensByAddr[msg.sender].isRegistered) {
             revert UNREGISTERED_USER();
         }
-        
+
         if (_ticketId.length < 1) {
             revert INVALID_INPUT();
         }
@@ -330,10 +326,11 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         }
 
         uint256 totalTicketPrice;
+        EventContract eventContract = eventMapping[_eventId];
 
         for (uint i; i < _ticketId.length; i++) {
             totalTicketPrice +=
-                eventMapping[_eventId].getTicketIdPrice(_ticketId[i]) *
+                eventContract.getTicketIdPrice(_ticketId[i]) *
                 _quantity[i];
         }
 
@@ -341,7 +338,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
             revert INSUFFICIENT_AMOUNT();
         }
 
-        eventMapping[_eventId].buyTicket(_ticketId, _quantity, _buyer);
+        eventContract.buyTicket(_ticketId, _quantity, _buyer);
     }
 
     /**
