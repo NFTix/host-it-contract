@@ -97,8 +97,8 @@ contract EventFactoryTest is Test {
             "New Event Description",
             "New Event Address",
             2000000,
-            3000000,
-            4000000,
+            5000000,
+            6000000,
             false,
             true
         );
@@ -114,8 +114,8 @@ contract EventFactoryTest is Test {
             "New Event Address"
         );
         assertEq(eventFactory.getEventDetails(0).date, 2000000);
-        assertEq(eventFactory.getEventDetails(0).startTime, 3000000);
-        assertEq(eventFactory.getEventDetails(0).endTime, 4000000);
+        assertEq(eventFactory.getEventDetails(0).startTime, 5000000);
+        assertEq(eventFactory.getEventDetails(0).endTime, 6000000);
         assertEq(eventFactory.getEventDetails(0).virtualEvent, false);
         assertEq(eventFactory.getEventDetails(0).privateEvent, true);
     }
