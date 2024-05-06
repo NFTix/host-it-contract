@@ -392,6 +392,54 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         }
     }
 
+    function payout(
+        address _organizer,
+        uint256 _eventId
+    )
+        external
+        onlyRole(
+            keccak256(abi.encodePacked("DEFAULT_EVENT_ORGANIZER", _eventId))
+        )
+    {
+        payable(_organizer).transfer(address(this).balance);
+    }
+
+    function refund(
+        uint256 _eventId,
+        uint256[] calldata _ticketIds,
+        uint256[] calldata _quantity,
+        address _buyer
+    ) external nonReentrant {
+        EventContract eventContract = events[_eventId];
+
+        // Ensure event exists
+        if (address(eventContract) == address(0)) revert EVENT_DOES_NOT_EXIST();
+
+        uint256 idsLength = _ticketIds.length;
+
+        if (idsLength < 1) revert INVALID_INPUT();
+
+        if (idsLength != _quantity.length) revert INPUT_MISMATCH();
+
+        uint256 totalTicketPrice;
+
+        for (uint i; i < idsLength; ) {
+            totalTicketPrice +=
+                eventContract.getTicketIdPrice(_ticketIds[i]) *
+                _quantity[i];
+
+            // An array can't have a total length
+            // larger than the max uint256 value.
+            unchecked {
+                ++i;
+            }
+        }
+
+        eventContract.refund(_ticketIds, _quantity, _buyer);
+
+        payable(_buyer).transfer(totalTicketPrice);
+    }
+
     /**
      * @dev Returns the balance of tickets for an event
      * @param _eventId The ID of the event
