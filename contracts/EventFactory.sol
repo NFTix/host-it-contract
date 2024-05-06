@@ -81,8 +81,8 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     uint256 eventId;
     EventContract[] events;
     mapping(address => EventContract[]) eventsCreatedByOrganizer;
-    mapping(address => EventContract[]) boughtTicketsByUser;
-    mapping(address => mapping(uint256 => EventContract[])) boughtTicketsByUserPerId;
+    mapping(address => EventContract[]) ticketsOwned;
+    mapping(address => mapping(uint256 => EventContract[])) ticketsOwnedPerId;
 
     /*//////////////////////////////////////////////////////////////
                             EVENT FACTORY LOGIC
@@ -304,10 +304,8 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
 
         if (idsLength < 1) revert INVALID_INPUT();
 
-        if (
-            idsLength != _quantity.length &&
-            idsLength != _prices.length
-        ) revert INPUT_MISMATCH();
+        if (idsLength != _quantity.length && idsLength != _prices.length)
+            revert INPUT_MISMATCH();
 
         eventContract.createEventTicket(_ticketIds, _quantity, _prices);
     }
@@ -327,7 +325,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      * @dev Buys tickets for an event
      * @param _eventId The ID of the event
      * @param _ticketIds The IDs of the tickets
-     * @param _quantity The quantity of each tickets to buy
+     * @param _quantity The quantity of each ticket to buy
      * @param _buyer The address of the buyer
      */
     function buyTicket(
@@ -363,15 +361,35 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
             }
         }
 
-        if (msg.value < totalTicketPrice) {
-            revert INSUFFICIENT_AMOUNT();
-        }
+        if (msg.value < totalTicketPrice) revert INSUFFICIENT_AMOUNT();
 
         eventContract.buyTicket(_ticketIds, _quantity, _buyer);
 
-        boughtTicketsByUserPerId[_buyer][_eventId].push(eventContract);
+        // ticketsOwnedPerId[_buyer][_eventId].push(eventContract);
 
-        boughtTicketsByUser[_buyer].push(eventContract);
+        uint256 ticketsOwnedLength = ticketsOwned[_buyer].length;
+        if (ticketsOwnedLength == 0) {
+            ticketsOwned[_buyer].push(eventContract);
+        } else {
+            bool isEventBought;
+
+            for (uint i; i < ticketsOwnedLength; ) {
+                if (ticketsOwned[_buyer][i] == eventContract) {
+                    isEventBought = true;
+                    break;
+                }
+
+                // An array can't have a total length
+                // larger than the max uint256 value.
+                unchecked {
+                    ++i;
+                }
+            }
+
+            if (!isEventBought) {
+                ticketsOwned[_buyer].push(eventContract);
+            }
+        }
     }
 
     /**
@@ -416,6 +434,17 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      */
     function getAllEvents() external view returns (EventContract[] memory) {
         return events;
+    }
+
+    /**
+     * @dev Returns all tickets owned by an account
+     * @param _account The address of the account
+     * @return Array of tickets owned
+     */
+    function getTicketsOwned(
+        address _account
+    ) external view returns (EventContract[] memory) {
+        return ticketsOwned[_account];
     }
 
     /**

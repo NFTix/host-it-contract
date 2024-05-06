@@ -127,11 +127,11 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         bool isCancelled;
     }
 
-    EventDetails public eventDetails;
+    EventDetails eventDetails;
     mapping(uint256 => uint256) ticketPricePerId;
     mapping(uint256 => uint256) soldTicketsPerId;
     mapping(uint256 => bool) ticketExists;
-    uint256[] public createdTicketIds;
+    uint256[] createdTicketIds;
 
     // Mapping to store the amount of each ticket bought by each user
     mapping(address => TicketPurchase[]) public userTickets;
