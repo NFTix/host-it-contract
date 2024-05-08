@@ -15,6 +15,8 @@ contract EventFactoryTest is Test {
     uint256[] testBuyQuantity = [5, 5];
     uint256[] testBuyPrice = [50, 500];
 
+    address user = 0xbb3a1D9a1ba453E66E98A1B91eA309B2a3Ed7240;
+
     function setUp() public {
         eventFactory = new EventFactory();
         organizer = address(1);
@@ -140,6 +142,7 @@ contract EventFactoryTest is Test {
 
         // Verify event tickets created
         assertEq(eventFactory.totalSupplyAllTickets(0), 120);
+        // assertEq(eventFactory.getTicketPrices(0), [10, 100]);
     }
 
     function testBuyTicket() public {
@@ -154,10 +157,10 @@ contract EventFactoryTest is Test {
         );
 
         // deal
-        deal(address(1), 1000);
+        deal(user, 1000);
 
-        vm.prank(address(1));
-        eventFactory.registerENS(address(1), "", "");
+        vm.startPrank(user);
+        eventFactory.registerENS(user, "", "");
 
         // Buy event tickets
         (bool ok, bytes memory data) = address(eventFactory).call{value: 550}(
@@ -166,7 +169,7 @@ contract EventFactoryTest is Test {
                 0,
                 testEventIds,
                 testBuyQuantity,
-                address(1)
+                user
             )
         );
         // require(ok, string(data));
@@ -176,10 +179,24 @@ contract EventFactoryTest is Test {
         // assertEq(eventFactory.getEventDetails(2).soldTickets, 10);
 
         // Verify event ticket in buyer account
-        assertEq(eventFactory.balanceOfTickets(0, address(1), 1), 5);
-        assertEq(eventFactory.balanceOfTickets(0, address(1), 2), 5);
+        assertEq(eventFactory.balanceOfTickets(0, user, 1), 5);
+        assertEq(eventFactory.balanceOfTickets(0, user, 2), 5);
         // assertEq(eventFactory.balanceOfTickets(1, address(2), 1), 5);
         // assertEq(eventFactory.balanceOfTickets(1, address(2), 2), 5);
         // assertEq(eventFactory.balanceOfTickets(2, address(1), 1), 5);
+
+        vm.stopPrank();
+    }
+
+    function testRefund() public {
+        testBuyTicket();
+
+        testCancelEvent();
+
+        eventFactory.refund(0, testEventIds, testBuyQuantity, user);
+
+        assertEq(eventFactory.balanceOfTickets(0, user, 1), 0);
+        // uint256 balance = 450 + (550 * 97 /100);
+        // assertEq(user.balance, balance);
     }
 }

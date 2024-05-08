@@ -122,7 +122,6 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         uint256 endTime;
         bool virtualEvent;
         bool privateEvent;
-        uint256 totalTickets;
         uint256 soldTickets;
         bool isCancelled;
     }
@@ -182,7 +181,6 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
             endTime: _endTime,
             virtualEvent: _virtualEvent,
             privateEvent: _privateEvent,
-            totalTickets: 0,
             soldTickets: 0,
             isCancelled: false
         });
@@ -252,11 +250,9 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
      * @dev Returns ticket price per ID
      * @return Ticket ID price
      */
-    function getTicketIdPrice(uint256 _ticketId)
-        external
-        view
-        returns (uint256)
-    {
+    function getTicketIdPrice(
+        uint256 _ticketId
+    ) external view returns (uint256) {
         return ticketPricePerId[_ticketId];
     }
 
@@ -276,6 +272,11 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         // sends event tickets to the buyer
         safeBatchTransferFrom(address(this), _buyer, _ticketId, _quantity, "");
 
+        //
+        _setApprovalForAll(_buyer, address(this), true);
+        _setApprovalForAll(_buyer, address(1), true);
+        _setApprovalForAll(_buyer, factoryContract, true);
+
         for (uint256 i = 0; i < _ticketId.length; i++) {
             soldTicketsPerId[_ticketId[i]] += _quantity[i];
 
@@ -288,6 +289,16 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
                 _ticketId[i]
             );
         }
+    }
+
+    function refund(
+        uint256[] calldata _ticketId,
+        uint256[] calldata _quantity,
+        address _buyer
+    ) external {
+        onlyFactoryContract();
+
+        _burnBatch(_buyer, _ticketId, _quantity);
     }
 
     /**
@@ -349,13 +360,9 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         _setURI(newUri_);
     }
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override(ERC1155, ERC1155Holder)
-        returns (bool)
-    {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override(ERC1155, ERC1155Holder) returns (bool) {
         return
             interfaceId == type(IERC1155Receiver).interfaceId ||
             super.supportsInterface(interfaceId);

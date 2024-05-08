@@ -7,7 +7,10 @@ import "./EventContract.sol";
 import "./Registry.sol";
 
 error EVENT_DOES_NOT_EXIST();
-error INVALID_START_TIME();
+error EVENT_CANCELLED();
+error EVENT_NOT_CANCELLED();
+error EVENT_HAS_ALREADY_STARTED();
+error INVALID_START_TIME(uint256 startTime);
 
 /**
  * @title EventFactory
@@ -42,7 +45,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      * @param virtualEvent Whether the event is virtual
      * @param privateEvent Whether the event is private
      */
-    event EventUpdated(
+    event EventRescheduled(
         uint256 indexed eventId,
         uint256 date,
         uint256 startTime,
@@ -74,19 +77,37 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         address indexed newOrganizer
     );
 
+    /**
+     * @dev Emitted when a user claims the refund from a cancelled event
+     * @param buyer Address of ticket buyer
+     * @param quantity Number of tickets bought
+     * @param price Price of the ticket
+     */
+    event RefundClaimed(address indexed buyer, uint256 quantity, uint256 price);
+
     /*//////////////////////////////////////////////////////////////
                             EVENT FACTORY STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    address admin;
     uint256 eventId;
     EventContract[] events;
+    mapping(uint256 => EventContract) eventMapping;
     mapping(address => EventContract[]) eventsCreatedByOrganizer;
     mapping(address => EventContract[]) ticketsOwned;
-    mapping(address => mapping(uint256 => EventContract[])) ticketsOwnedPerId;
+    // address -> eventId -> ticketId -> price
+    mapping(address => mapping(uint256 => mapping(uint256 => uint256))) ticketBoughtBalance;
+
+    // TODO: store organizer's balance
+    mapping(uint256 => uint256) eventBalance;
 
     /*//////////////////////////////////////////////////////////////
                             EVENT FACTORY LOGIC
     //////////////////////////////////////////////////////////////*/
+
+    constructor() {
+        admin = msg.sender;
+    }
 
     /**
      * @dev Creates a new event
@@ -110,7 +131,11 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         bool _virtualEvent,
         bool _privateEvent
     ) external {
+        // check if user is registered
         if (!ensByAddr[_organizer].isRegistered) revert UNREGISTERED_USER();
+
+        // check if start time is past
+        if (block.timestamp > _startTime) revert INVALID_START_TIME(_startTime);
 
         EventContract newEvent = new EventContract(
             eventId,
@@ -126,6 +151,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         );
 
         events.push(newEvent);
+        eventMapping[eventId] = newEvent;
         eventsCreatedByOrganizer[_organizer].push(newEvent);
 
         // grant the organizer a specific role for this event
@@ -218,17 +244,22 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
+        //ensure organizer is registered
         if (!ensByAddr[_organizer].isRegistered) revert UNREGISTERED_USER();
 
-        EventContract eventContract = events[_eventId];
+        EventContract eventContract = eventMapping[_eventId];
 
-        // Ensure event exists
+        // ensure event exists
         if (address(eventContract) == address(0)) revert EVENT_DOES_NOT_EXIST();
 
-        // Check if the event has not started yet
-        if (_startTime > block.timestamp) revert INVALID_START_TIME();
+        // ensure event has not been cancelled already
+        if (eventContract.getEventDetails().isCancelled)
+            revert EVENT_CANCELLED();
 
-        // Update event details
+        // check if the event has not started yet
+        if (block.timestamp > _startTime) revert EVENT_HAS_ALREADY_STARTED();
+
+        // update event details
         eventContract.updateEventDetails(
             _eventName,
             _description,
@@ -240,8 +271,8 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
             _privateEvent
         );
 
-        // Emit event updated
-        emit EventUpdated(
+        // emit event updated
+        emit EventRescheduled(
             _eventId,
             _date,
             _startTime,
@@ -265,10 +296,14 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     {
         if (!ensByAddr[_organizer].isRegistered) revert UNREGISTERED_USER();
 
-        EventContract eventContract = events[_eventId];
+        EventContract eventContract = eventMapping[_eventId];
 
         // Ensure event exists
         if (address(eventContract) == address(0)) revert EVENT_DOES_NOT_EXIST();
+
+        // Ensure event has not been cancelled already
+        if (eventContract.getEventDetails().isCancelled)
+            revert EVENT_CANCELLED();
 
         eventContract.cancelEvent();
 
@@ -293,12 +328,17 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
+        // ensure organizer is  registered
         if (!ensByAddr[_organizer].isRegistered) revert UNREGISTERED_USER();
 
-        EventContract eventContract = events[_eventId];
+        EventContract eventContract = eventMapping[_eventId];
 
         // Ensure event exists
         if (address(eventContract) == address(0)) revert EVENT_DOES_NOT_EXIST();
+
+        // Ensure event has not been cancelled already
+        if (eventContract.getEventDetails().isCancelled)
+            revert EVENT_CANCELLED();
 
         uint256 idsLength = _ticketIds.length;
 
@@ -318,7 +358,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     function getCreatedTickets(
         uint256 _eventId
     ) external view returns (uint256[] memory) {
-        return events[_eventId].getCreatedTickets();
+        return eventMapping[_eventId].getCreatedTickets();
     }
 
     /**
@@ -336,10 +376,16 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     ) external payable nonReentrant {
         if (!ensByAddr[_buyer].isRegistered) revert UNREGISTERED_USER();
 
-        EventContract eventContract = events[_eventId];
+        if (_eventId > eventId) revert EVENT_DOES_NOT_EXIST();
+
+        EventContract eventContract = eventMapping[_eventId];
 
         // Ensure event exists
         if (address(eventContract) == address(0)) revert EVENT_DOES_NOT_EXIST();
+
+        // Ensure event has not been cancelled already
+        if (eventContract.getEventDetails().isCancelled)
+            revert EVENT_CANCELLED();
 
         uint256 idsLength = _ticketIds.length;
 
@@ -354,6 +400,9 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
                 eventContract.getTicketIdPrice(_ticketIds[i]) *
                 _quantity[i];
 
+            ticketBoughtBalance[_buyer][_eventId][_ticketIds[i]] = eventContract
+                .getTicketIdPrice(_ticketIds[i]);
+
             // An array can't have a total length
             // larger than the max uint256 value.
             unchecked {
@@ -365,8 +414,11 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
 
         eventContract.buyTicket(_ticketIds, _quantity, _buyer);
 
+        eventBalance[_eventId] += totalTicketPrice * 97 / 100;
+
         // ticketsOwnedPerId[_buyer][_eventId].push(eventContract);
 
+        // store events of tickets owned by buyer
         uint256 ticketsOwnedLength = ticketsOwned[_buyer].length;
         if (ticketsOwnedLength == 0) {
             ticketsOwned[_buyer].push(eventContract);
@@ -401,7 +453,16 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
             keccak256(abi.encodePacked("DEFAULT_EVENT_ORGANIZER", _eventId))
         )
     {
-        payable(_organizer).transfer(address(this).balance);
+        EventContract eventContract = eventMapping[_eventId];
+        EventContract.EventDetails memory eventDetails = eventContract.getEventDetails();
+
+        if (eventDetails.isCancelled) revert EVENT_CANCELLED();
+        if (eventDetails.endTime > block.timestamp) revert EVENT_HAS_ALREADY_STARTED();
+
+        // TODO: access organizer's stored balance
+        uint256 balance = eventBalance[_eventId];
+        eventBalance[_eventId] = 0;
+        payable(_organizer).transfer(balance);
     }
 
     function refund(
@@ -410,10 +471,14 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         uint256[] calldata _quantity,
         address _buyer
     ) external nonReentrant {
-        EventContract eventContract = events[_eventId];
+        EventContract eventContract = eventMapping[_eventId];
+        EventContract.EventDetails memory eventDetails = eventContract.getEventDetails();
 
-        // Ensure event exists
+        // check if event exists
         if (address(eventContract) == address(0)) revert EVENT_DOES_NOT_EXIST();
+
+        //  check if event has been cancelled
+        if (!eventDetails.isCancelled) revert EVENT_NOT_CANCELLED();
 
         uint256 idsLength = _ticketIds.length;
 
@@ -424,9 +489,15 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         uint256 totalTicketPrice;
 
         for (uint i; i < idsLength; ) {
-            totalTicketPrice +=
-                eventContract.getTicketIdPrice(_ticketIds[i]) *
-                _quantity[i];
+            uint256 ticketIdPrice = eventContract.getTicketIdPrice(
+                _ticketIds[i]
+            );
+            totalTicketPrice += ticketIdPrice * _quantity[i];
+            // soldTicketsPerId[_ticketId[i]] -= _quantity[i];
+
+            eventDetails.soldTickets -= _quantity[i];
+
+            emit RefundClaimed(_buyer, _quantity[i], ticketIdPrice);
 
             // An array can't have a total length
             // larger than the max uint256 value.
@@ -435,9 +506,11 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
             }
         }
 
+        eventBalance[_eventId] = 0;
+
         eventContract.refund(_ticketIds, _quantity, _buyer);
 
-        payable(_buyer).transfer(totalTicketPrice);
+        payable(_buyer).transfer(totalTicketPrice * 97 / 100);
     }
 
     /**
@@ -452,7 +525,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         address _account,
         uint256 _ticketId
     ) external view returns (uint256) {
-        return events[_eventId].balanceOf(_account, _ticketId);
+        return eventMapping[_eventId].balanceOf(_account, _ticketId);
     }
 
     /**
@@ -463,7 +536,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     function getEventDetails(
         uint256 _eventId
     ) external view returns (EventContract.EventDetails memory) {
-        return events[_eventId].getEventDetails();
+        return eventMapping[_eventId].getEventDetails();
     }
 
     /**
@@ -482,6 +555,36 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      */
     function getAllEvents() external view returns (EventContract[] memory) {
         return events;
+    }
+
+    /**
+     * @dev Returns all tickets for an event
+     * @return Array of ticket ids
+     */
+    function getEventTickets(
+        uint256 _eventId
+    ) external view returns (uint256[] memory) {
+        return eventMapping[_eventId].getCreatedTickets();
+    }
+
+    /**
+     * @dev Returns ticket prices for an event
+     * @return Array of ticket prices
+     */
+    function getTicketPrices(
+        uint256 _eventId
+    ) external view returns (uint256[] memory) {
+        EventContract eventContract = eventMapping[_eventId];
+        uint256[] memory tickets = eventContract.getCreatedTickets();
+        uint256[] memory ticketPrices;
+        for (uint i; i < tickets.length; ) {
+            ticketPrices[i] = eventContract.getTicketIdPrice(i);
+
+            unchecked {
+                ++i;
+            }
+        }
+        return ticketPrices;
     }
 
     /**
@@ -505,7 +608,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         uint256 _eventId,
         uint256 _ticketId
     ) external view returns (uint256) {
-        return events[_eventId].totalSupply(_ticketId);
+        return eventMapping[_eventId].totalSupply(_ticketId);
     }
 
     /**
@@ -516,7 +619,12 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     function totalSupplyAllTickets(
         uint256 _eventId
     ) external view returns (uint256) {
-        return events[_eventId].totalSupply();
+        return eventMapping[_eventId].totalSupply();
+    }
+
+    function withdraw() external {
+        require(msg.sender == admin);
+        payable(admin).transfer(address(this).balance);
     }
 
     receive() external payable {}
