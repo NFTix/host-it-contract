@@ -19,7 +19,7 @@ import "./Errors.sol";
  * @dev This contract uses AccessControl and ReentrancyGuard from OpenZeppelin
  * @dev This contract uses AccessControl and ReentrancyGuard from OpenZeppelin
  */
-contract EventFactory is AccessControl, ReentrancyGuard, Registry {
+contract EventFactory is AccessControl, ReentrancyGuard, Registry, ERC2771Context {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -95,7 +95,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     //////////////////////////////////////////////////////////////*/
     uint256 eventId;
     EventContract[] events;
-    mapping(uint256 => EventContract) eventIdMap;
+    mapping(uint256 => EventContract) eventMapping;
     mapping(address => EventContract[]) eventsCreatedByOrganizer;
     mapping(address => EventContract[]) boughtTicketsByUser;
     mapping(address => mapping(uint256 => EventContract[])) boughtTicketsByUserPerId;
@@ -103,6 +103,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     /*//////////////////////////////////////////////////////////////
                             EVENT FACTORY LOGIC
     //////////////////////////////////////////////////////////////*/
+    constructor() ERC2771Context(0xd8253782c45a12053594b9deB72d8e8aB2Fca54c) {}
     /**
      * @dev Creates a new event
      * @param _eventName The name of the new event
@@ -115,7 +116,6 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      * @param _privateEvent Whether the new event is private
      */
     function createNewEvent(
-        address _organizer,
         string memory _eventName,
         string memory _description,
         string memory _eventAddress,
@@ -125,13 +125,13 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         bool _virtualEvent,
         bool _privateEvent
     ) external {
-        if (!ensByAddr[_organizer].isRegistered) {
+        if (!ensByAddr[_msgSender()].isRegistered) {
             revert Errors.UNREGISTERED_USER();
         }
 
         EventContract newEvent = new EventContract(
             eventId,
-            _organizer,
+            _msgSender(),
             _eventName,
             _description,
             _eventAddress,
@@ -142,9 +142,9 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
             _privateEvent
         );
 
-        eventIdMap[eventId] = newEvent;
+        eventMapping[eventId] = newEvent;
         events.push(newEvent);
-        eventsCreatedByOrganizer[_organizer].push(newEvent);
+        eventsCreatedByOrganizer[_msgSender()].push(newEvent);
 
         // grant the organizer a specific role for this event
         bytes32 defaultEventIdRole = keccak256(
@@ -153,11 +153,11 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         bytes32 eventIdRole = keccak256(
             abi.encodePacked("EVENT_ORGANIZER", eventId)
         );
-        require(_grantRole(defaultEventIdRole, _organizer));
-        require(_grantRole(eventIdRole, _organizer));
+        require(_grantRole(defaultEventIdRole, _msgSender()));
+        require(_grantRole(eventIdRole, _msgSender()));
 
         // emit event creation
-        emit EventCreated(eventId, _eventName, _organizer);
+        emit EventCreated(eventId, _eventName, _msgSender());
 
         // increment eventId
         eventId++;
@@ -222,7 +222,6 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      */
     function updateEvent(
         uint256 _eventId,
-        address _organizer,
         string memory _eventName,
         string memory _description,
         string memory _eventAddress,
@@ -236,11 +235,11 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
-        if (!ensByAddr[_organizer].isRegistered) {
+        if (!ensByAddr[_msgSender()].isRegistered) {
             revert Errors.UNREGISTERED_USER();
         }
 
-        EventContract eventContract = eventIdMap[_eventId];
+        EventContract eventContract = eventMapping[_eventId];
 
         // Ensure event exists
         require(address(eventContract) != address(0), "Event does not exist");
@@ -276,18 +275,17 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      * @param _eventId The ID of the event
      */
     function cancelEvent(
-        uint256 _eventId,
-        address _organizer
+        uint256 _eventId
     )
         external
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
-        if (!ensByAddr[_organizer].isRegistered) {
+        if (!ensByAddr[_msgSender()].isRegistered) {
             revert Errors.UNREGISTERED_USER();
         }
 
-        EventContract eventContract = eventIdMap[_eventId];
+        EventContract eventContract = eventMapping[_eventId];
 
         // Ensure event exists
         require(address(eventContract) != address(0), "Event does not exist");
@@ -305,7 +303,6 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      */
     function createEventTicket(
         uint256 _eventId,
-        address _organizer,
         uint256[] calldata _ticketId,
         uint256[] calldata _quantity,
         uint256[] calldata _price
@@ -314,11 +311,11 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         onlyRole(keccak256(abi.encodePacked("EVENT_ORGANIZER", _eventId)))
         nonReentrant
     {
-        if (!ensByAddr[_organizer].isRegistered) {
+        if (!ensByAddr[_msgSender()].isRegistered) {
             revert Errors.UNREGISTERED_USER();
         }
 
-        EventContract eventContract = eventIdMap[_eventId];
+        EventContract eventContract = eventMapping[_eventId];
 
         // Ensure event exists
         require(address(eventContract) != address(0), "Event does not exist");
@@ -344,7 +341,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     function getCreatedTickets(
         uint256 _eventId
     ) external view returns (uint256[] memory) {
-        return eventIdMap[_eventId].getCreatedTickets();
+        return eventMapping[_eventId].getCreatedTickets();
     }
 
     /**
@@ -352,19 +349,19 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
      * @param _eventId The ID of the event
      * @param _ticketId The ID of the ticket
      * @param _quantity The quantity of tickets to buy
-     * @param _buyer The address of the buyer
      */
     function buyTicket(
         uint256 _eventId,
         uint256[] calldata _ticketId,
-        uint256[] calldata _quantity,
-        address _buyer
+        uint256[] calldata _quantity
     ) external payable nonReentrant {
+        address _buyer = _msgSender();
+
         if (!ensByAddr[_buyer].isRegistered) {
             revert Errors.UNREGISTERED_USER();
         }
 
-        EventContract eventContract = eventIdMap[_eventId];
+        EventContract eventContract = eventMapping[_eventId];
 
         // Ensure event exists
         require(address(eventContract) != address(0), "Event does not exist");
@@ -408,7 +405,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         address _account,
         uint256 _ticketId
     ) external view returns (uint256) {
-        return eventIdMap[_eventId].balanceOf(_account, _ticketId);
+        return eventMapping[_eventId].balanceOf(_account, _ticketId);
     }
 
     /**
@@ -419,15 +416,15 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     function getEventDetails(
         uint256 _eventId
     ) external view returns (EventContract.EventDetails memory) {
-        return eventIdMap[_eventId].getEventDetails();
+        return eventMapping[_eventId].getEventDetails();
     }
 
      /**
      * @dev Returns all events created by an organizer
      * @return Array of organizers' events
      */
-    function getAllEventsByOrganizer(address _organizer) external view returns (EventContract[] memory) {
-        return eventsCreatedByOrganizer[_organizer];
+    function getAllEventsByOrganizer() external view returns (EventContract[] memory) {
+        return eventsCreatedByOrganizer[_msgSender()];
     }
 
     /**
@@ -448,7 +445,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         uint256 _eventId,
         uint256 _ticketId
     ) external view returns (uint256) {
-        return eventIdMap[_eventId].totalSupply(_ticketId);
+        return eventMapping[_eventId].totalSupply(_ticketId);
     }
 
     /**
@@ -459,15 +456,15 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     function totalSupplyAllTickets(
         uint256 _eventId
     ) external view returns (uint256) {
-        return eventIdMap[_eventId].totalSupply();
+        return eventMapping[_eventId].totalSupply();
     }
 
-    function _msgSender() internal view virtual override returns (address) {
-        return super._msgSender();
+    function _msgSender() internal view virtual override(Context, ERC2771Context) returns (address) {
+        return ERC2771Context._msgSender();
     }
 
-    function _msgData() internal view virtual override returns (bytes calldata) {
-        return super._msgData();
+    function _msgData() internal view virtual override(Context, ERC2771Context) returns (bytes calldata) {
+        return ERC2771Context._msgData();
     }
 
     receive() external payable {}

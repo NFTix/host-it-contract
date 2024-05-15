@@ -6,8 +6,6 @@ import "../contracts/EventFactory.sol";
 
 contract EventFactoryTest is Test {
     EventFactory eventFactory;
-    address organizer;
-    address buyer;
     uint256 testEventId = 0;
     uint256[] testEventIds = [1, 2];
     uint256[] testQuantity = [100, 20];
@@ -17,11 +15,8 @@ contract EventFactoryTest is Test {
 
     function setUp() public {
         eventFactory = new EventFactory();
-        organizer = address(1);
-        buyer = address(2);
         eventFactory.registerENS(address(this), "", "");
         eventFactory.createNewEvent(
-            address(this), // organizer
             "Event 1",
             "Event 1 Description",
             "Event 1 Address",
@@ -33,7 +28,6 @@ contract EventFactoryTest is Test {
         );
 
         eventFactory.createNewEvent(
-            address(this), // organizer
             "Event 2",
             "Event 2 Description",
             "Event 2 Address",
@@ -92,7 +86,6 @@ contract EventFactoryTest is Test {
         // Update the event
         eventFactory.updateEvent(
             0,
-            address(this),
             "New Event Name",
             "New Event Description",
             "New Event Address",
@@ -122,7 +115,7 @@ contract EventFactoryTest is Test {
 
     function testCancelEvent() public {
         // Cancel the event
-        eventFactory.cancelEvent(0, address(this));
+        eventFactory.cancelEvent(0);
 
         // Verify event cancelled event emitted
         assertEq(eventFactory.getEventDetails(0).isCancelled, true);
@@ -132,7 +125,6 @@ contract EventFactoryTest is Test {
         // Create event tickets
         eventFactory.createEventTicket(
             0,
-            address(this),
             testEventIds,
             testQuantity,
             testPrice
@@ -145,31 +137,24 @@ contract EventFactoryTest is Test {
     function testBuyTicket() public {
         testCreateEventTicket();
 
-        eventFactory.createEventTicket(
-            1,
-            address(this),
-            testEventIds,
-            testQuantity,
-            testPrice
-        );
-
+        vm.startPrank(address(1));
         // deal
         deal(address(1), 1000);
 
-        vm.prank(address(1));
         eventFactory.registerENS(address(1), "", "");
 
         // Buy event tickets
         (bool ok, ) = address(eventFactory).call{value: 550}(
             abi.encodeWithSignature(
-                "buyTicket(uint256,uint256[],uint256[],address)",
+                "buyTicket(uint256,uint256[],uint256[])",
                 0,
                 testEventIds,
-                testBuyQuantity,
-                address(1)
+                testBuyQuantity
             )
         );
         assert(ok);
+
+        vm.stopPrank();
 
         // Verify event tickets purchased
         assertEq(eventFactory.getEventDetails(0).soldTickets, 10);
