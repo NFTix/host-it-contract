@@ -4,13 +4,7 @@ pragma solidity 0.8.25;
 // imports
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-
-// errors
-error NOT_ADMIN();
-error INVALID_INPUT();
-error INPUT_MISMATCH();
-error INSUFFICIENT_AMOUNT();
-error UNREGISTERED_USER();
+import "./Errors.sol";
 
 /**
  * @dev EventContract is a contract that represents an event
@@ -201,7 +195,7 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
      */
     function onlyFactoryContract() private view {
         if (msg.sender != factoryContract) {
-            revert NOT_ADMIN();
+            revert Errors.NOT_ADMIN();
         }
     }
 
