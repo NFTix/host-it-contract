@@ -1,7 +1,0 @@
-forge create --rpc-url https://rpc.sepolia-api.lisk.com --private-key 88c9489e261363f12c454e3c566ae33a1aa09842606ed6a1da6b109ece14a9e8 contracts/EventFactory.sol:EventFactory
-
-forge create --rpc-url https://opt-sepolia.g.alchemy.com/v2/UsSiEl-ui1MZAGd5Uw0DZCJopoPrV6lT --private-key 88c9489e261363f12c454e3c566ae33a1aa09842606ed6a1da6b109ece14a9e8 contracts/EventFactory.sol:EventFactory
-
-forge verify-contract --chain-id 11155420 --watch --etherscan-api-key DNVNYFCAJSWB64SBR5YDCVVEYSB7Y3CZNG --compiler-version v0.8.25+commit.b61c2a91 0x81f1C034CBDD7E23694cA1a895bFC8Fb080D65e6 contracts/EventFactory.sol:EventFactory
-
-forge create --rpc-url https://rpc.sepolia-api.lisk.com --etherscan-api-key 123 --verify --verifier blockscout --verifier-url https://sepolia-blockscout.lisk.com/api --private-key 88c9489e261363f12c454e3c566ae33a1aa09842606ed6a1da6b109ece14a9e8 contracts/EventFactory.sol:EventFactory
