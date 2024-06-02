@@ -199,6 +199,10 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
         }
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            WRITE FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @dev Mints event tickets to the contract
      * @param _ticketId The ID of the ticket
@@ -235,21 +239,35 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     }
 
     /**
-     * @dev Returns created tickets
-     * @return Array of created ticket IDs
+     * @dev Updates the event details
+     * @param _eventName The new name of the event
+     * @param _description The new description of the event
+     * @param _eventAddress The new address of the event
+     * @param _date The new date of the event
+     * @param _startTime The new start time of the event
+     * @param _endTime The new end time of the event
+     * @param _virtualEvent Whether the event is virtual
+     * @param _privateEvent Whether the event is private
      */
-    function getCreatedTickets() external view returns (uint256[] memory) {
-        return createdTicketIds;
-    }
-
-    /**
-     * @dev Returns ticket price per ID
-     * @return Ticket ID price
-     */
-    function getTicketIdPrice(
-        uint256 _ticketId
-    ) external view returns (uint256) {
-        return ticketPricePerId[_ticketId];
+    function updateEventDetails(
+        string memory _eventName,
+        string memory _description,
+        string memory _eventAddress,
+        uint256 _date,
+        uint256 _startTime,
+        uint256 _endTime,
+        bool _virtualEvent,
+        bool _privateEvent
+    ) external {
+        onlyFactoryContract();
+        eventDetails.eventName = _eventName;
+        eventDetails.description = _description;
+        eventDetails.eventAddress = _eventAddress;
+        eventDetails.date = _date;
+        eventDetails.startTime = _startTime;
+        eventDetails.endTime = _endTime;
+        eventDetails.virtualEvent = _virtualEvent;
+        eventDetails.privateEvent = _privateEvent;
     }
 
     /**
@@ -283,46 +301,6 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     }
 
     /**
-     * @dev Returns the event details
-     * @return The event details
-     */
-    function getEventDetails() external view returns (EventDetails memory) {
-        return eventDetails;
-    }
-
-    /**
-     * @dev Updates the event details
-     * @param _eventName The new name of the event
-     * @param _description The new description of the event
-     * @param _eventAddress The new address of the event
-     * @param _date The new date of the event
-     * @param _startTime The new start time of the event
-     * @param _endTime The new end time of the event
-     * @param _virtualEvent Whether the event is virtual
-     * @param _privateEvent Whether the event is private
-     */
-    function updateEventDetails(
-        string memory _eventName,
-        string memory _description,
-        string memory _eventAddress,
-        uint256 _date,
-        uint256 _startTime,
-        uint256 _endTime,
-        bool _virtualEvent,
-        bool _privateEvent
-    ) external {
-        onlyFactoryContract();
-        eventDetails.eventName = _eventName;
-        eventDetails.description = _description;
-        eventDetails.eventAddress = _eventAddress;
-        eventDetails.date = _date;
-        eventDetails.startTime = _startTime;
-        eventDetails.endTime = _endTime;
-        eventDetails.virtualEvent = _virtualEvent;
-        eventDetails.privateEvent = _privateEvent;
-    }
-
-    /**
      * @dev Cancels the event
      */
     function cancelEvent() external {
@@ -339,6 +317,36 @@ contract EventContract is ERC1155Supply, ERC1155Holder {
     function setEventURI(string memory newUri_) external {
         onlyFactoryContract();
         _setURI(newUri_);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              READ FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev Returns created tickets
+     * @return Array of created ticket IDs
+     */
+    function getCreatedTickets() external view returns (uint256[] memory) {
+        return createdTicketIds;
+    }
+
+    /**
+     * @dev Returns ticket price per ID
+     * @return Ticket ID price
+     */
+    function getTicketIdPrice(
+        uint256 _ticketId
+    ) external view returns (uint256) {
+        return ticketPricePerId[_ticketId];
+    }
+
+    /**
+     * @dev Returns the event details
+     * @return The event details
+     */
+    function getEventDetails() external view returns (EventDetails memory) {
+        return eventDetails;
     }
 
     function supportsInterface(
