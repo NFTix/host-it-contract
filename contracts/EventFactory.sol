@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./EventContract.sol";
 import "./Registry.sol";
+import "./ILogAutomation.sol";
 import "./Errors.sol";
 
 /**
@@ -14,12 +15,18 @@ import "./Errors.sol";
  * @author Olorunsogo <sogobanwo@gmail.com>
  * @notice This contract is a factory for creating and managing events
  * @dev This contract uses AccessControl and ReentrancyGuard from OpenZeppelin
- * @dev This contract uses AccessControl and ReentrancyGuard from OpenZeppelin
+ * @dev This contract uses ILogAutomation from Chainlink
  */
-contract EventFactory is AccessControl, ReentrancyGuard, Registry {
+contract EventFactory is
+    AccessControl,
+    ReentrancyGuard,
+    Registry,
+    ILogAutomation
+{
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+
     /**
      * @dev Emitted when a new event is created
      * @param eventId The ID of the new event
@@ -87,9 +94,12 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         address indexed newOrganizer
     );
 
+    event CountedBy(address indexed msgSender);
+
     /*//////////////////////////////////////////////////////////////
                             EVENT FACTORY STORAGE
     //////////////////////////////////////////////////////////////*/
+
     uint256 eventId;
     EventContract[] events;
     mapping(uint256 => EventContract) eventMapping;
@@ -347,7 +357,6 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         uint256[] calldata _quantity,
         address _buyer
     ) external payable nonReentrant {
-
         if (!ensByAddr[_buyer].isRegistered) {
             revert Errors.UNREGISTERED_USER();
         }
@@ -382,6 +391,61 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         boughtTicketsByUserPerId[_buyer][_eventId].push(eventContract);
 
         boughtTicketsByUser[_buyer].push(eventContract);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            CHAINLINK FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice method that is simulated by the keepers to see if any work actually
+     * needs to be performed. This method does does not actually need to be
+     * executable, and since it is only ever simulated it can consume lots of gas.
+     * @dev To ensure that it is never called, you may want to add the
+     * cannotExecute modifier from KeeperBase to your implementation of this
+     * method.
+     * @param log the raw log data matching the filter that this contract has
+     * registered as a trigger
+     * @param checkData user-specified extra data to provide context to this upkeep
+     * @return upkeepNeeded boolean to indicate whether the keeper should call
+     * performUpkeep or not.
+     * @return performData bytes that the keeper should call performUpkeep with, if
+     * upkeep is needed. If you would like to encode data to decode later, try
+     * `abi.encode`.
+     */
+    function checkLog(
+        Log calldata log,
+        bytes memory checkData
+    ) external pure returns (bool upkeepNeeded, bytes memory performData) {
+        upkeepNeeded = true;
+        address logSender = bytes32ToAddress(log.topics[1]);
+        performData = abi.encode(logSender);
+    }
+
+    /**
+     * @notice method that is actually executed by the keepers, via the registry.
+     * The data returned by the checkUpkeep simulation will be passed into
+     * this method to actually be executed.
+     * @dev The input to this method should not be trusted, and the caller of the
+     * method should not even be restricted to any single registry. Anyone should
+     * be able call it, and the input should be validated, there is no guarantee
+     * that the data passed in is the performData returned from checkUpkeep. This
+     * could happen due to malicious keepers, racing keepers, or simply a state
+     * change while the performUpkeep transaction is waiting for confirmation.
+     * Always validate the data passed in.
+     * @param performData is the data which was passed back from the checkData
+     * simulation. If it is encoded, it can easily be decoded into other types by
+     * calling `abi.decode`. This data should not be trusted, and should be
+     * validated against the contract's current state.
+     */
+    function performUpkeep(bytes calldata performData) external override {
+        // counted += 1;
+        address logSender = abi.decode(performData, (address));
+        emit CountedBy(logSender);
+    }
+
+    function bytes32ToAddress(bytes32 _address) public pure returns (address) {
+        return address(uint160(uint256(_address)));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -424,11 +488,13 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         return eventMapping[_eventId].getEventDetails();
     }
 
-     /**
+    /**
      * @dev Returns all events created by an organizer
      * @return Array of organizers' events
      */
-    function getAllEventsByOrganizer(address _organizer) external view returns (EventContract[] memory) {
+    function getAllEventsByOrganizer(
+        address _organizer
+    ) external view returns (EventContract[] memory) {
         return eventsCreatedByOrganizer[_organizer];
     }
 
@@ -463,6 +529,10 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     ) external view returns (uint256) {
         return eventMapping[_eventId].totalSupply();
     }
+
+    /*//////////////////////////////////////////////////////////////
+                         RECIEVE ETHER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     receive() external payable {}
 
