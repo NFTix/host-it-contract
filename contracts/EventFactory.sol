@@ -338,6 +338,10 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
     ) external payable nonReentrant {
         if (!ensByAddr[_buyer].isRegistered) revert UNREGISTERED_USER();
 
+        if (_ticketId.length < 1) {
+            revert INVALID_INPUT();
+        }
+
         EventContract eventContract = events[_eventId];
 
         // Ensure event exists
@@ -350,10 +354,11 @@ contract EventFactory is AccessControl, ReentrancyGuard, Registry {
         if (idsLength != _quantity.length) revert INPUT_MISMATCH();
 
         uint256 totalTicketPrice;
+        EventContract eventContract = eventMapping[_eventId];
 
         for (uint i; i < idsLength; ) {
             totalTicketPrice +=
-                eventContract.getTicketIdPrice(_ticketIds[i]) *
+                eventContract.getTicketIdPrice(_ticketId[i]) *
                 _quantity[i];
 
             // An array can't have a total length
