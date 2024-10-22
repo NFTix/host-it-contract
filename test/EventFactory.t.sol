@@ -5,10 +5,10 @@ import "forge-std/Test.sol";
 import "../contracts/EventFactory.sol";
 
 contract EventFactoryTest is Test {
-    EventFactory public eventFactory;
-    address public organizer;
-    address public buyer;
-    uint256 testEventId = 1;
+    EventFactory eventFactory;
+    address organizer;
+    address buyer;
+    uint256 testEventId = 0;
     uint256[] testEventIds = [1, 2];
     uint256[] testQuantity = [100, 20];
     uint256[] testPrice = [10, 100];
@@ -19,15 +19,12 @@ contract EventFactoryTest is Test {
         eventFactory = new EventFactory();
         organizer = address(1);
         buyer = address(2);
-        eventFactory.registerENS("", "");
-    }
-
-    function testCreateNewEvent() public {
-        // Test event creation
+        eventFactory.registerENS(address(this), "", "");
         eventFactory.createNewEvent(
-            "Event Name",
-            "Event Description",
-            "Event Address",
+            address(this), // organizer
+            "Event 1",
+            "Event 1 Description",
+            "Event 1 Address",
             1000000,
             2000000,
             3000000,
@@ -35,27 +32,34 @@ contract EventFactoryTest is Test {
             false
         );
 
-        // Verify event creation event emitted
+        eventFactory.createNewEvent(
+            address(this), // organizer
+            "Event 2",
+            "Event 2 Description",
+            "Event 2 Address",
+            1000000,
+            2000000,
+            3000000,
+            false,
+            true
+        );
+    }
+
+    function testCreateNewEvent() public view {
+        // Verify event creation 1
+        assertEq(eventFactory.getEventDetails(0).eventId, 0);
+        assertEq(eventFactory.getEventDetails(0).eventName, "Event 1");
+        assertEq(eventFactory.getEventDetails(0).organizer, address(this));
+
+        // Verify event creation 2
         assertEq(eventFactory.getEventDetails(1).eventId, 1);
-        assertEq(eventFactory.getEventDetails(1).eventName, "Event Name");
+        assertEq(eventFactory.getEventDetails(1).eventName, "Event 2");
         assertEq(eventFactory.getEventDetails(1).organizer, address(this));
     }
 
     function testAddEventOrganizer() public {
-        // Create a new event
-        eventFactory.createNewEvent(
-            "Event Name",
-            "Event Description",
-            "Event Address",
-            1000000,
-            2000000,
-            3000000,
-            true,
-            false
-        );
-
         // Add a new organizer
-        eventFactory.addEventOrganizer(1, address(2));
+        eventFactory.addEventOrganizer(0, address(2));
 
         // Verify organizer added event emitted
         assertEq(
@@ -68,23 +72,11 @@ contract EventFactoryTest is Test {
     }
 
     function testRemoveOrganizer() public {
-        // Create a new event
-        eventFactory.createNewEvent(
-            "Event Name",
-            "Event Description",
-            "Event Address",
-            1000000,
-            2000000,
-            3000000,
-            true,
-            false
-        );
-
         // Add a new organizer
-        eventFactory.addEventOrganizer(1, address(2));
+        eventFactory.addEventOrganizer(0, address(2));
 
         // Remove the organizer
-        eventFactory.removeOrganizer(1, address(2));
+        eventFactory.removeOrganizer(0, address(2));
 
         // Verify organizer removed event emitted
         assertEq(
@@ -97,21 +89,10 @@ contract EventFactoryTest is Test {
     }
 
     function testUpdateEvent() public {
-        // Create a new event
-        eventFactory.createNewEvent(
-            "Event Name",
-            "Event Description",
-            "Event Address",
-            1000000,
-            2000000,
-            3000000,
-            true,
-            false
-        );
-
         // Update the event
         eventFactory.updateEvent(
-            1,
+            0,
+            address(this),
             "New Event Name",
             "New Event Description",
             "New Event Address",
@@ -123,100 +104,50 @@ contract EventFactoryTest is Test {
         );
 
         // Verify event updated event emitted
-        assertEq(eventFactory.getEventDetails(1).eventName, "New Event Name");
+        assertEq(eventFactory.getEventDetails(0).eventName, "New Event Name");
         assertEq(
-            eventFactory.getEventDetails(1).description,
+            eventFactory.getEventDetails(0).description,
             "New Event Description"
         );
         assertEq(
-            eventFactory.getEventDetails(1).eventAddress,
+            eventFactory.getEventDetails(0).eventAddress,
             "New Event Address"
         );
-        assertEq(eventFactory.getEventDetails(1).date, 2000000);
-        assertEq(eventFactory.getEventDetails(1).startTime, 3000000);
-        assertEq(eventFactory.getEventDetails(1).endTime, 4000000);
-        assertEq(eventFactory.getEventDetails(1).virtualEvent, false);
-        assertEq(eventFactory.getEventDetails(1).privateEvent, true);
+        assertEq(eventFactory.getEventDetails(0).date, 2000000);
+        assertEq(eventFactory.getEventDetails(0).startTime, 3000000);
+        assertEq(eventFactory.getEventDetails(0).endTime, 4000000);
+        assertEq(eventFactory.getEventDetails(0).virtualEvent, false);
+        assertEq(eventFactory.getEventDetails(0).privateEvent, true);
     }
 
     function testCancelEvent() public {
-        // Create a new event
-        eventFactory.createNewEvent(
-            "Event Name",
-            "Event Description",
-            "Event Address",
-            1000000,
-            2000000,
-            3000000,
-            true,
-            false
-        );
-
         // Cancel the event
-        eventFactory.cancelEvent(1);
+        eventFactory.cancelEvent(0, address(this));
 
         // Verify event cancelled event emitted
-        assertEq(eventFactory.getEventDetails(1).isCancelled, true);
+        assertEq(eventFactory.getEventDetails(0).isCancelled, true);
     }
 
     function testCreateEventTicket() public {
-        // Create a new event
-        eventFactory.createNewEvent(
-            "Event Name",
-            "Event Description",
-            "Event Address",
-            1000000,
-            2000000,
-            3000000,
-            true,
-            false
-        );
-
         // Create event tickets
         eventFactory.createEventTicket(
-            1,
+            0,
+            address(this),
             testEventIds,
             testQuantity,
             testPrice
         );
 
         // Verify event tickets created
-        assertEq(eventFactory.totalSupplyAllTickets(1), 120);
+        assertEq(eventFactory.totalSupplyAllTickets(0), 120);
     }
 
     function testBuyTicket() public {
-        // Create a new event
-        eventFactory.createNewEvent(
-            "Event 1",
-            "Event 1 Description",
-            "Event 1 Address",
-            1000000,
-            2000000,
-            3000000,
-            true,
-            false
-        );
+        testCreateEventTicket();
 
-        eventFactory.createNewEvent(
-            "Event 2",
-            "Event 2 Description",
-            "Event 2 Address",
-            1000000,
-            2000000,
-            3000000,
-            false,
-            true
-        );
-
-        // Create event tickets
         eventFactory.createEventTicket(
             1,
-            testEventIds,
-            testQuantity,
-            testPrice
-        );
-        eventFactory.createEventTicket(
-            2,
+            address(this),
             testEventIds,
             testQuantity,
             testPrice
@@ -224,13 +155,15 @@ contract EventFactoryTest is Test {
 
         // deal
         deal(address(1), 1000);
-        deal(address(2), 1000);
+
+        vm.prank(address(1));
+        eventFactory.registerENS(address(1), "", "");
 
         // Buy event tickets
         (bool ok, bytes memory data) = address(eventFactory).call{value: 550}(
             abi.encodeWithSignature(
                 "buyTicket(uint256,uint256[],uint256[],address)",
-                1,
+                0,
                 testEventIds,
                 testBuyQuantity,
                 address(1)
@@ -239,12 +172,12 @@ contract EventFactoryTest is Test {
         // require(ok, string(data));
 
         // Verify event tickets purchased
-        assertEq(eventFactory.getEventDetails(1).soldTickets, 10);
+        assertEq(eventFactory.getEventDetails(0).soldTickets, 10);
         // assertEq(eventFactory.getEventDetails(2).soldTickets, 10);
 
         // Verify event ticket in buyer account
-        assertEq(eventFactory.balanceOfTickets(1, address(1), 1), 5);
-        assertEq(eventFactory.balanceOfTickets(1, address(1), 2), 5);
+        assertEq(eventFactory.balanceOfTickets(0, address(1), 1), 5);
+        assertEq(eventFactory.balanceOfTickets(0, address(1), 2), 5);
         // assertEq(eventFactory.balanceOfTickets(1, address(2), 1), 5);
         // assertEq(eventFactory.balanceOfTickets(1, address(2), 2), 5);
         // assertEq(eventFactory.balanceOfTickets(2, address(1), 1), 5);
